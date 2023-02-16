@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include "vector.h"
 #include <cstdio>
 #include <cstdlib>
 
@@ -84,24 +85,9 @@ matrix_t matrix_t::T() {
     matrix_t res(this->cols, this->rows);
     for (int i = 0; i < this->cols; i++) {
         for (int j = 0; j < this->rows; j++) {
-            res(i, j) = (*this)(j, i);
+            res(i, j) = el(j, i);
         }
     }
-    return res;
-}
-
-double matrix_t::vecNorm() const {
-    double res = 0;
-    if (this->rows == 1) {
-        for (int i = 0; i < this->cols; i++) {
-            res += el(0, i) * el(0, i);
-        }
-    } else {
-        for (int i = 0; i < this->rows; i++) {
-            res += el(i, 0) * el(i, 0);
-        }
-    }
-    res = sqrt(res);
     return res;
 }
 
@@ -139,7 +125,6 @@ std::ostream& operator<<(std::ostream& os, const matrix_t& M) {
 
 double mat::random(double a, double b) { return a + (double)rand() * (b - a) / RAND_MAX; }
 
-double norm(const matrix_t& M) { return M.vecNorm(); }
 double infnorm(const matrix_t& M) { return M.infnorm(); }
 
 void matPrint(const matrix_t& M) {
@@ -156,14 +141,14 @@ void matPrint(const matrix_t& M) {
 
 matrix_t ThomasAlg(const matrix_t& B) {
     int size = B.rows;
-    matrix_t delta(size), lambda(size);
+    vector_t delta(size), lambda(size);
     delta[0] = -B(0, 2) / B(0, 1);
     lambda[0] = B(0, 3) / B(0, 1);
     for (int i = 1; i < size; i++) {
         delta[i] = -B(i, 2) / (B(i, 1) + B(i, 0) * delta[i - 1]);
         lambda[i] = (B(i, 3) - B(i, 0) * lambda[i - 1]) / (B(i, 1) + B(i, 0) * delta[i - 1]);
     }
-    matrix_t M(size);
+    vector_t M(size);
     M[size - 1] = lambda[size - 1];
     for (int i = size - 2; i >= 0; i--) {
         M[i] = delta[i] * M[i + 1] + lambda[i];

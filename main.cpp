@@ -1,13 +1,14 @@
 #include "matrix.h"
+#include "vector.h"
 #include <functional>
 #include <iostream>
 
 using namespace std;
 
 struct task_t {
-    matrix_t C;
+    vector_t C;
     matrix_t A;
-    matrix_t b;
+    vector_t b;
 };
 
 int main(int argc, char* argv[]) {
