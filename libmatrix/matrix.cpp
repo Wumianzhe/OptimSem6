@@ -90,7 +90,7 @@ matrix_t matrix_t::T() {
     return res;
 }
 
-double matrix_t::norm() const {
+double matrix_t::vecNorm() const {
     double res = 0;
     if (this->rows == 1) {
         for (int i = 0; i < this->cols; i++) {
@@ -139,7 +139,7 @@ std::ostream& operator<<(std::ostream& os, const matrix_t& M) {
 
 double mat::random(double a, double b) { return a + (double)rand() * (b - a) / RAND_MAX; }
 
-double norm(const matrix_t& M) { return M.norm(); }
+double norm(const matrix_t& M) { return M.vecNorm(); }
 double infnorm(const matrix_t& M) { return M.infnorm(); }
 
 void matPrint(const matrix_t& M) {
