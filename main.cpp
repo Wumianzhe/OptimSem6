@@ -16,14 +16,17 @@ struct task_t {
 
 std::pair<task_t, set<int>> read(string filename);
 vector<string> split(string line, char sep);
-task_t genPrimary(std::pair<task_t, set<int>>& generic);
-task_t genDual(std::pair<task_t, set<int>>& generic);
+task_t genCanon(task_t task, set<int>& noneq, int sign);
+task_t genDual(task_t task, set<int>& noneq);
 
 int main(int argc, char* argv[]) {
-    auto generic = read("task.csv");
-    auto prim = genPrimary(generic);
+    auto [task, noneq] = read("task.csv");
+    auto prim = genCanon(task, noneq, -1);
     cout << prim.C.T() << endl;
     cout << prim.A << endl << prim.b.T();
+    auto dual = genDual(task, noneq);
+    cout << dual.C.T() << endl;
+    cout << dual.A << endl << dual.b.T();
     return 0;
 }
 
@@ -51,7 +54,7 @@ std::pair<task_t, set<int>> read(string filename) {
         if (words[width] != "EQ") {
             noneqIndices.insert(i);
             if (words[width] == "LT") {
-                transform(A.begin() + i * width, A.begin() + (i + 1) * width + 1, A.begin() + i * width, [](double d) { return -1 * d; });
+                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width, [](double d) { return -1 * d; });
                 b[i] *= -1;
             }
         }
@@ -62,14 +65,11 @@ std::pair<task_t, set<int>> read(string filename) {
     set<int> unboundIndices;
     transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()), [](string& str) { return stoi(str) - 1; });
     // I almost forgot i store in column-major, so consecutive areas are columns, not rows
-    A = A.T();
-    task_t task = {C, A, b, width, unboundIndices};
-    return {task, noneqIndices};
+    return {{C, A.T(), b, width, unboundIndices}, noneqIndices};
 }
 
-task_t genPrimary(std::pair<task_t, set<int>>& generic) {
-    task_t& baseline = generic.first;
-    set<int>& noneq = generic.second;
+task_t genCanon(task_t task, set<int>& noneq, int sign) {
+    task_t& baseline = task;
 
     Matrix A(baseline.A.rows, baseline.size + baseline.unbound.size() + noneq.size());
     // due to way matrices are stored, it will copy first n columns, which is exactly what I want
@@ -84,13 +84,38 @@ task_t genPrimary(std::pair<task_t, set<int>>& generic) {
         }
         col++;
     }
-    // a >= b => a - w = b, w >=0
+    // a >= b => a - w = b, w >=0 if sign = -1
+    // or a <= b => a + w = b, w >=0 if sign = 1
     col = baseline.size + baseline.unbound.size();
     for (int i : noneq) {
         C.push_back(0);
-        A(i, col++) = -1;
+        A(i, col++) = sign;
     }
     return {C, A, baseline.b, baseline.size, baseline.unbound};
+}
+
+task_t genDual(task_t task, set<int>& noneq) {
+    Matrix A(task.A.T());
+    vector_t b = task.C;
+    vector_t C = task.b;
+    set<int> dualUnbound;
+    set<int> dualNoneq;
+    // x_i >=0 => A^T[i] y <= C[i]
+    for (int i = 0; i < b.rows; i++) {
+        // x_i >= 0
+        if (task.unbound.find(i) == task.unbound.end()) {
+            dualNoneq.insert(i);
+        }
+    }
+    // A[i] x >= b[i] => y_i >= 0
+    for (int i = 0; i < C.rows; i++) {
+        // A[i] x = b[i]
+        if (noneq.find(i) == noneq.end()) {
+            dualUnbound.insert(i);
+        }
+    }
+    task_t dual = {C, A, b, C.rows, dualUnbound};
+    return genCanon(dual, dualNoneq, 1);
 }
 
 vector<string> split(string line, char sep) {
