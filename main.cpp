@@ -15,12 +15,18 @@ task_t genDual(task_t task, set<int>& unbound, set<int>& noneq);
 int main(int argc, char* argv[]) {
     auto [task, unbound, noneq] = read("task.csv");
     auto prim = genCanon(task, unbound, noneq, -1);
+    cout << "Прямая задача:\n";
+    cout << prim.C.T() << endl;
+    cout << prim.A << endl;
+    cout << "b: " << prim.b.T() << endl;
     auto dual = genDual(task, unbound, noneq);
-    cout << dual.A << endl;
+    cout << "Двойственная задача:\n";
+    cout << dual.C.T() << endl << dual.A << endl;
     cout << "b: " << dual.b.T() << endl;
     vector_t dualRoot = enumerate(dual);
-    cout << dualRoot.T() << endl << dual.C.T();
-    cout << dual.C.T() * dualRoot;
+    cout << "Решение:";
+    cout << dualRoot.T() << endl;
+    cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
     return 0;
 }
 
@@ -48,7 +54,8 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
         if (words[width] != "EQ") {
             noneqIndices.insert(i);
             if (words[width] == "LT") {
-                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width, [](double d) { return -1 * d; });
+                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width,
+                          [](double d) { return -1 * d; });
                 b[i] *= -1;
             }
         }
@@ -57,7 +64,8 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
     getline(in, line);
     auto words = split(line, ',');
     set<int> unboundIndices;
-    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()), [](string& str) { return stoi(str) - 1; });
+    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()),
+              [](string& str) { return stoi(str) - 1; });
     // I almost forgot i store in column-major, so consecutive areas are columns, not rows
     return {{C, A.T(), b}, unboundIndices, noneqIndices};
 }

@@ -172,7 +172,7 @@ set<int> fill(task_t t, set<int> Np) {
 }
 
 // requires det!=0 due to gauss
-Matrix solve(Matrix A, Matrix b, Matrix& Ai) {
+Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
     int m = A.rows;
     // for some reason does not work when i multiply A and b separately. Need a lot more debugging time for that
     Matrix B(A.rows, A.cols + 1);
@@ -198,8 +198,8 @@ Matrix solve(Matrix A, Matrix b, Matrix& Ai) {
 
         Matrix H = Matrix::eyes(A.rows) - W * W.T() * beta;
         B = H * B;
-        // unsure about it
-        Ai = H * Ai;
+        // building inverse
+        Ainv = H * Ainv;
     }
 
     // gaussBack
