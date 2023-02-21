@@ -1,4 +1,5 @@
 #include "matrix.h"
+#include "simplex.h"
 #include "vector.h"
 #include <functional>
 #include <iostream>
@@ -6,31 +7,24 @@
 
 using namespace std;
 
-struct task_t {
-    vector_t C;
-    Matrix A;
-    vector_t b;
-    int size;         // always size of base task, for restoration
-    set<int> unbound; // these are kept to be able to restore solution
-};
-
-std::pair<task_t, set<int>> read(string filename);
+std::tuple<task_t, set<int>, set<int>> read(string filename);
 vector<string> split(string line, char sep);
-task_t genCanon(task_t task, set<int>& noneq, int sign);
-task_t genDual(task_t task, set<int>& noneq);
+task_t genCanon(task_t task, set<int>& unbound, set<int>& noneq, int sign);
+task_t genDual(task_t task, set<int>& unbound, set<int>& noneq);
 
 int main(int argc, char* argv[]) {
-    auto [task, noneq] = read("task.csv");
-    auto prim = genCanon(task, noneq, -1);
-    cout << prim.C.T() << endl;
-    cout << prim.A << endl << prim.b.T();
-    auto dual = genDual(task, noneq);
-    cout << dual.C.T() << endl;
-    cout << dual.A << endl << dual.b.T();
+    auto [task, unbound, noneq] = read("task.csv");
+    auto prim = genCanon(task, unbound, noneq, -1);
+    auto dual = genDual(task, unbound, noneq);
+    cout << dual.A << endl;
+    cout << "b: " << dual.b.T() << endl;
+    vector_t dualRoot = enumerate(dual);
+    cout << dualRoot.T() << endl << dual.C.T();
+    cout << dual.C.T() * dualRoot;
     return 0;
 }
 
-std::pair<task_t, set<int>> read(string filename) {
+std::tuple<task_t, set<int>, set<int>> read(string filename) {
     fstream in(filename);
     int height, width;
     string line;
@@ -65,19 +59,20 @@ std::pair<task_t, set<int>> read(string filename) {
     set<int> unboundIndices;
     transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()), [](string& str) { return stoi(str) - 1; });
     // I almost forgot i store in column-major, so consecutive areas are columns, not rows
-    return {{C, A.T(), b, width, unboundIndices}, noneqIndices};
+    return {{C, A.T(), b}, unboundIndices, noneqIndices};
 }
 
-task_t genCanon(task_t task, set<int>& noneq, int sign) {
+task_t genCanon(task_t task, set<int>& unbound, set<int>& noneq, int sign) {
     task_t& baseline = task;
+    int size = baseline.A.cols;
 
-    Matrix A(baseline.A.rows, baseline.size + baseline.unbound.size() + noneq.size());
+    Matrix A(baseline.A.rows, size + unbound.size() + noneq.size());
     // due to way matrices are stored, it will copy first n columns, which is exactly what I want
     copy(baseline.A.begin(), baseline.A.end(), A.begin());
     // x_i = x'_i - v_i, x_'i >=0, v_i >=0
     vector_t C = baseline.C;
-    int col = baseline.size;
-    for (int i : baseline.unbound) {
+    int col = size;
+    for (int i : unbound) {
         C.push_back(-C[i]);
         for (int j = 0; j < A.rows; j++) {
             A(j, col) = -A(j, i);
@@ -86,15 +81,15 @@ task_t genCanon(task_t task, set<int>& noneq, int sign) {
     }
     // a >= b => a - w = b, w >=0 if sign = -1
     // or a <= b => a + w = b, w >=0 if sign = 1
-    col = baseline.size + baseline.unbound.size();
+    col = size + unbound.size();
     for (int i : noneq) {
         C.push_back(0);
         A(i, col++) = sign;
     }
-    return {C, A, baseline.b, baseline.size, baseline.unbound};
+    return {C, A, baseline.b};
 }
 
-task_t genDual(task_t task, set<int>& noneq) {
+task_t genDual(task_t task, set<int>& unbound, set<int>& noneq) {
     Matrix A(task.A.T());
     vector_t b = task.C;
     vector_t C = task.b;
@@ -103,7 +98,7 @@ task_t genDual(task_t task, set<int>& noneq) {
     // x_i >=0 => A^T[i] y <= C[i]
     for (int i = 0; i < b.rows; i++) {
         // x_i >= 0
-        if (task.unbound.find(i) == task.unbound.end()) {
+        if (unbound.find(i) == unbound.end()) {
             dualNoneq.insert(i);
         }
     }
@@ -114,8 +109,7 @@ task_t genDual(task_t task, set<int>& noneq) {
             dualUnbound.insert(i);
         }
     }
-    task_t dual = {C, A, b, C.rows, dualUnbound};
-    return genCanon(dual, dualNoneq, 1);
+    return genCanon({C, A, b}, dualUnbound, dualNoneq, 1);
 }
 
 vector<string> split(string line, char sep) {

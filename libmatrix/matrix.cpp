@@ -100,6 +100,7 @@ void Matrix::operator=(const Matrix& R) {
     this->_data = R._data;
 }
 
+Matrix Matrix::operator[](const std::set<int> N) const { return Matrix(*this, N); }
 Matrix Matrix::T() {
     Matrix res(this->cols, this->rows);
     for (int i = 0; i < this->cols; i++) {

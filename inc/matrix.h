@@ -27,6 +27,7 @@ struct Matrix {
     // operator[] with multiple parameters is c++23 feature and my linter does not like it
     inline double& operator()(int i, int j) { return el(i, j); }
     inline double operator()(int i, int j) const { return el(i, j); }
+    Matrix operator[](const std::set<int> N) const;
     Matrix operator*(const Matrix R) const;
     Matrix operator*(const double n) const;
     Matrix operator/(const double n) const;
