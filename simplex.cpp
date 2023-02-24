@@ -4,34 +4,46 @@
 using namespace std;
 
 double eps = 1e-8;
+struct {
+    set<int> supSet;
+    int size;
+    vector<bool> mask;
+    set<int> next() {
+        if (!prev_permutation(mask.begin(), mask.end())) {
+            return {};
+        }
+        set<int> perm;
+        auto it = supSet.begin();
+        for (int i = 0; i < mask.size(); i++) {
+            if (mask[i]) {
+                perm.insert(*it);
+            }
+            it = std::next(it);
+        }
+        return perm;
+    }
+    set<int> reset(set<int> L, int size) {
+        mask.resize(size, true);
+        mask.resize(supSet.size(), false);
+        set<int> perm;
+        auto it = supSet.begin();
+        for (int i = 0; i < mask.size(); i++) {
+            if (mask[i]) {
+                perm.insert(*it);
+            }
+            it = std::next(it);
+        }
+        return perm;
+    }
+} generator;
+
 inline int sign(double n) { return (n >= 0); }
 // should not alter initial objects
 set<int> merge(set<int> N, set<int> L) {
     N.merge(L);
     return N;
 }
-set<int> comb(set<int> L, int count, bool reset) {
-    static std::vector<bool> bitmask;
-    if (reset) {
-        bitmask.resize(count, true);
-        bitmask.resize(L.size(), false);
-    }
-    if (!reset) {
-        if (!prev_permutation(bitmask.begin(), bitmask.end())) {
-            return {};
-        }
-    }
-    set<int> perm;
-    auto it = L.begin();
-    for (int i = 0; i < bitmask.size(); i++) {
-        if (bitmask[i]) {
-            perm.insert(*it);
-        }
-        it = next(it);
-    }
-    return perm;
-}
-vector_t genNext(task_t task, Matrix B, vector_t xk, vector_t dk, set<int> N, set<int> L);
+vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk);
 set<int> fill(task_t t, set<int> N);
 double det(Matrix A);
 Matrix solve(Matrix A, Matrix b, Matrix& Ai);
@@ -41,10 +53,12 @@ vector_t simplex(task_t task, vector_t x0) {
     int n = task.A.cols;
     set<int> Nkp;
     set<int> Nk;
-    vector_t xk = x0;
+    vector_t xk(0);
+    vector_t xkn = x0;
     Matrix B = Matrix::eyes(m); // A^-1
     bool gt = true;
     do {
+
         // refill each time, but should not be actually long
         Nkp.clear();
         for (int i = 0; i < n; i++) {
@@ -74,7 +88,14 @@ vector_t simplex(task_t task, vector_t x0) {
                 break;
             }
         }
-        xk = genNext(task, B, xk, dk, Nk, Lk);
+        int jk;
+        for (int j : Lk) {
+            if (dk(j, 0) < 0) {
+                jk = j;
+                break;
+            }
+        }
+        xk = genNext(task, B, xk, jk, Nk);
     } while (!gt);
     return xk;
 }
@@ -108,16 +129,9 @@ vector_t initBasic(task_t task) {
     return simplex({secC, secA, task.b}, x0);
 }
 
-vector_t genNext(task_t task, Matrix B, vector_t xk, vector_t dk, set<int> Nk, set<int> L) {
+vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk) {
     int n = task.A.cols;
     int m = task.A.rows;
-    int jk;
-    for (int j : L) {
-        if (dk[j] < 0) {
-            jk = j;
-            break;
-        }
-    }
     vector_t uk(task.A.cols); // initialized with zeroes
     auto uknk = B * task.A[{jk}];
     bool lt = true;
@@ -255,7 +269,7 @@ vector_t enumerate(task_t task) {
     for (int i = 0; i < n; i++) {
         N.insert(i);
     }
-    set<int> Nk = comb(N, m, 1);
+    set<int> Nk = generator.reset(N, m);
     // final combination is empty
     while (Nk != set<int>{}) {
         if (abs(det(task.A[Nk])) > eps) {
