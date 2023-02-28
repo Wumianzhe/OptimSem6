@@ -27,11 +27,12 @@ int main(int argc, char* argv[]) {
     cout << "Решение:";
     cout << dualRoot.T() << endl;
     cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
-    // vector<double> els = {1, 2, 2, -2, 0, -1, 1, -3, -1};
-    // Matrix A(3, 3);
+    // vector<double> els = {1, 2, 3, 4, 5, 6, 2, 7, 8, 9, -10, -11, -3, -12, -13, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0};
+    // Matrix A(5, 5);
     // copy(els.begin(), els.end(), A.begin());
     // auto [Qt, R] = Matrix::QtRdecomp(A);
-    // cout << R;
+    // Matrix Rinv = Matrix::RInverse(R);
+    // cout << A;
     return 0;
 }
 

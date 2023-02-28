@@ -40,6 +40,7 @@ struct Matrix {
 
     static Matrix eyes(int size);
     static Matrix ThomasAlg(const Matrix& B);
+    static Matrix RInverse(Matrix R);
     static std::pair<Matrix, Matrix> QtRdecomp(const Matrix& A);
 
     auto begin() { return _data.begin(); }

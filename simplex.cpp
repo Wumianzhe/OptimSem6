@@ -38,7 +38,6 @@ struct {
     }
 } generator;
 
-inline int sign(double n) { return (n >= 0) ? 1 : -1; }
 // should not alter initial objects
 set<int> merge(set<int> N, set<int> L) {
     N.merge(L);
@@ -192,14 +191,18 @@ Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
         for (int k = i + 1; k < m; k++) {
             s += R(i, k) * res[k];
         }
-        double x = (b(i, 0) - s) / (R(i, i));
+        double x = (b(i, 0) - s) / R(i, i);
         res[i] = x;
     }
+    Ainv = Matrix::RInverse(R) * Qt;
     return res;
 }
 
-// no requirements for A, it can always be transformed
+// no requirements for A other than squareness, it can always be transformed
 double det(Matrix A) {
+    if (A.cols != A.rows) {
+        throw std::invalid_argument("determinant is not defined for non-square matrices");
+    }
     auto [Qt, R] = Matrix::QtRdecomp(A);
     double det = 1;
     for (int i = 0; i < R.rows; i++) {
@@ -236,7 +239,7 @@ vector_t enumerate(task_t task) {
                 it++;
             }
             // compiler doesn't know it's 1x1
-            if (dot(task.C, x_tFull) > dot(task.C, x_tFull)) {
+            if (dot(task.C, x_tFull) > dot(task.C, x)) {
                 copy(x_tFull.begin(), x_tFull.end(), x.begin());
             }
         }

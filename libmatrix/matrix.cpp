@@ -206,3 +206,21 @@ std::pair<Matrix, Matrix> Matrix::QtRdecomp(const Matrix& A) {
     }
     return {Q, R};
 }
+
+Matrix Matrix::RInverse(Matrix R) {
+    int n = R.cols;
+    // solving RX = E, R should be square
+    Matrix X(n, n);
+    Matrix E = Matrix::eyes(n);
+    for (int j = 0; j < n; j++) {
+        for (int i = n - 1; i >= 0; i--) {
+            double s = 0;
+            for (int k = i + 1; k < n; k++) {
+                s += R(i, k) * X(k, j);
+            }
+            double x = (E(i, j) - s) / R(i, i);
+            X(i, j) = x;
+        }
+    }
+    return X;
+}
