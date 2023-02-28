@@ -27,6 +27,11 @@ int main(int argc, char* argv[]) {
     cout << "Решение:";
     cout << dualRoot.T() << endl;
     cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
+    // vector<double> els = {1, 2, 2, -2, 0, -1, 1, -3, -1};
+    // Matrix A(3, 3);
+    // copy(els.begin(), els.end(), A.begin());
+    // auto [Qt, R] = Matrix::QtRdecomp(A);
+    // cout << R;
     return 0;
 }
 
@@ -54,8 +59,7 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
         if (words[width] != "EQ") {
             noneqIndices.insert(i);
             if (words[width] == "LT") {
-                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width,
-                          [](double d) { return -1 * d; });
+                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width, [](double d) { return -1 * d; });
                 b[i] *= -1;
             }
         }
@@ -64,8 +68,7 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
     getline(in, line);
     auto words = split(line, ',');
     set<int> unboundIndices;
-    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()),
-              [](string& str) { return stoi(str) - 1; });
+    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()), [](string& str) { return stoi(str) - 1; });
     // I almost forgot i store in column-major, so consecutive areas are columns, not rows
     return {{C, A.T(), b}, unboundIndices, noneqIndices};
 }

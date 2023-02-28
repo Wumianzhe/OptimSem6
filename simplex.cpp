@@ -23,6 +23,7 @@ struct {
         return perm;
     }
     set<int> reset(set<int> L, int size) {
+        supSet = L;
         mask.resize(size, true);
         mask.resize(supSet.size(), false);
         set<int> perm;
@@ -37,7 +38,7 @@ struct {
     }
 } generator;
 
-inline int sign(double n) { return (n >= 0); }
+inline int sign(double n) { return (n >= 0) ? 1 : -1; }
 // should not alter initial objects
 set<int> merge(set<int> N, set<int> L) {
     N.merge(L);
@@ -160,26 +161,20 @@ set<int> fill(task_t t, set<int> Np) {
     // initial fill, using leftmost vectors
     int req = t.A.rows - Np.size();
     set<int> L;
-    set<int> N0;
     for (int i = 0; i < t.A.rows; i++) {
         // if not already in set
         if (Np.find(i) == Np.end()) {
             L.insert(i);
-            // first rows not in set
-            if (N0.size() < req) {
-                N0.insert(i);
-            }
         }
     }
+    set<int> perm = generator.reset(L, req);
     // no exact comparison for doubles, should be det == 0
-    if (abs(det(t.A[merge(Np, N0)])) < eps) {
-        return merge(Np, N0);
+    if (abs(det(t.A[merge(Np, perm)])) < eps) {
+        return merge(Np, perm);
     }
-    // shuffle around (first permutation should be same as N0, but it's not a big optimization)
     // std::prev_permutation is used to generate sequences, so there are no repeats
-    set<int> perm = comb(L, req, 1);
     while (abs(det(t.A[merge(Np, perm)])) < eps) {
-        perm = comb(L, req, 0);
+        perm = generator.next();
     }
 
     return merge(Np, perm);
@@ -188,42 +183,16 @@ set<int> fill(task_t t, set<int> Np) {
 // requires det!=0 due to gauss
 Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
     int m = A.rows;
-    // for some reason does not work when i multiply A and b separately. Need a lot more debugging time for that
-    Matrix B(A.rows, A.cols + 1);
-    copy(A.begin(), A.end(), B.begin());
-    copy(b.begin(), b.end(), B.begin() + A.size());
-
-    for (int i = 0; i < m; i++) {
-        double s = 0;
-        for (int k = i; k < m; k++) {
-            s += A(k, i) * A(k, i);
-        }
-
-        // w construction
-        vector_t W(m);
-        for (int k = 0; k < i; k++) {
-            W[k] = 0;
-        }
-        W(i, 0) = A(i, i) + sign(A(i, i)) * sqrt(s);
-        for (int k = i + 1; k < m; k++) {
-            W[k] = A(k, i);
-        }
-        double beta = 1 / (s + abs(A(i, i)) * sqrt(s));
-
-        Matrix H = Matrix::eyes(A.rows) - W * W.T() * beta;
-        B = H * B;
-        // building inverse
-        Ainv = H * Ainv;
-    }
-
+    auto [Qt, R] = Matrix::QtRdecomp(A);
+    b = Qt * b;
     // gaussBack
     vector_t res(m);
     for (int i = m - 1; i >= 0; i--) {
         double s = 0;
         for (int k = i + 1; k < m; k++) {
-            s += A(i, k) * res[k];
+            s += R(i, k) * res[k];
         }
-        double x = (b(i, 0) - s) / (A(i, i));
+        double x = (b(i, 0) - s) / (R(i, i));
         res[i] = x;
     }
     return res;
@@ -231,30 +200,10 @@ Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
 
 // no requirements for A, it can always be transformed
 double det(Matrix A) {
-    int m = A.rows;
-    for (int i = 0; i < m; i++) {
-        double s = 0;
-        for (int k = i; k < m; k++) {
-            s += A(k, i) * A(k, i);
-        }
-
-        // w construction
-        vector_t W(m);
-        for (int k = 0; k < i; k++) {
-            W[k] = 0;
-        }
-        W(i, 0) = A(i, i) + sign(A(i, i)) * sqrt(s);
-        for (int k = i + 1; k < m; k++) {
-            W[k] = A(k, i);
-        }
-        double beta = 1 / (s + abs(A(i, i)) * sqrt(s));
-
-        Matrix H = Matrix::eyes(A.rows) - W * W.T() * beta;
-        A = H * A;
-    }
+    auto [Qt, R] = Matrix::QtRdecomp(A);
     double det = 1;
-    for (int i = 0; i < m; i++) {
-        det *= A(i, i);
+    for (int i = 0; i < R.rows; i++) {
+        det *= R(i, i);
     }
     return det;
 }
@@ -274,30 +223,24 @@ vector_t enumerate(task_t task) {
     while (Nk != set<int>{}) {
         if (abs(det(task.A[Nk])) > eps) {
             // x_t is only using m indices, while n are needed for sizes to match
-            Matrix x_t = solve(task.A[Nk], task.b, B);
-            bool positive = true;
-            for (int i = 0; i < m; i++) {
-                if (x_t(i, 0) < 0) {
-                    positive = false;
-                    break;
-                }
-            }
-            if (!positive) {
-                Nk = comb(N, m, 0);
+            vector_t x_t = solve(task.A[Nk], task.b, B);
+            if (!(x_t >= 0)) {
+                Nk = generator.next();
                 continue;
             }
             vector_t x_tFull(n);
+
             auto it = Nk.begin();
             for (int i = 0; i < m; i++) {
                 x_tFull[*it] = x_t(i, 0);
                 it++;
             }
             // compiler doesn't know it's 1x1
-            if ((task.C.T() * x_tFull)(0, 0) > (task.C.T() * x)(0, 0)) {
-                copy(x_t.begin(), x_t.end(), x.begin());
+            if (dot(task.C, x_tFull) > dot(task.C, x_tFull)) {
+                copy(x_tFull.begin(), x_tFull.end(), x.begin());
             }
         }
-        Nk = comb(N, m, 0);
+        Nk = generator.next();
     }
     return x;
 }

@@ -34,12 +34,13 @@ struct Matrix {
     Matrix operator-(const Matrix R) const;
     Matrix operator+(const Matrix R) const;
     void operator=(const Matrix& R);
-    Matrix T();
+    Matrix T() const;
     double infnorm() const;
     inline void write(std::ofstream& fstr) const { fstr.write(reinterpret_cast<const char*>(_data.data()), _data.size() * sizeof(double)); }
 
     static Matrix eyes(int size);
     static Matrix ThomasAlg(const Matrix& B);
+    static std::pair<Matrix, Matrix> QtRdecomp(const Matrix& A);
 
     auto begin() { return _data.begin(); }
     auto end() { return _data.end(); }

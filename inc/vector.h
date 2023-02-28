@@ -7,9 +7,17 @@ struct vector_t : public Matrix {
     vector_t(Matrix& mat) : Matrix(mat) {
         rows *= cols;
         cols = 1;
-    };
+    }
+    vector_t(Matrix&& mat) : Matrix(mat) {
+        rows *= cols;
+        cols = 1;
+    }
     inline double& operator[](const int i) { return el(i, 0); }
     inline double operator[](const int i) const { return el(i, 0); }
+    bool operator>(const double R) const;
+    bool operator<(const double R) const;
+    bool operator<=(const double R) const;
+    bool operator>=(const double R) const;
     void push_back(double el) {
         _data.push_back(el);
         rows++;
@@ -17,4 +25,5 @@ struct vector_t : public Matrix {
     double eqNorm() const;
 };
 double norm(const vector_t& v);
+double dot(const vector_t& r, const vector_t& l);
 #endif // VECTOR_H_

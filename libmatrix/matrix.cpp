@@ -4,6 +4,8 @@
 #include <cstdio>
 #include <cstdlib>
 
+inline int sign(double n) { return (n >= 0) ? 1 : -1; }
+
 Matrix::Matrix(const Matrix& M) {
     rows = M.rows;
     cols = M.cols;
@@ -101,7 +103,7 @@ void Matrix::operator=(const Matrix& R) {
 }
 
 Matrix Matrix::operator[](const std::set<int> N) const { return Matrix(*this, N); }
-Matrix Matrix::T() {
+Matrix Matrix::T() const {
     Matrix res(this->cols, this->rows);
     for (int i = 0; i < this->cols; i++) {
         for (int j = 0; j < this->rows; j++) {
@@ -174,4 +176,33 @@ Matrix Matrix::ThomasAlg(const Matrix& B) {
         M[i] = delta[i] * M[i + 1] + lambda[i];
     }
     return M;
+}
+
+// uses reflection transform
+std::pair<Matrix, Matrix> Matrix::QtRdecomp(const Matrix& A) {
+    int m = A.rows;
+    Matrix R = A;
+    Matrix Q = Matrix::eyes(m);
+    for (int i = 0; i < m; i++) {
+        double s = 0;
+        for (int k = i; k < m; k++) {
+            s += R(k, i) * R(k, i);
+        }
+
+        // w construction
+        vector_t W(m);
+        for (int k = 0; k < i; k++) {
+            W[k] = 0;
+        }
+        W(i, 0) = R(i, i) + sign(R(i, i)) * sqrt(s);
+        for (int k = i + 1; k < m; k++) {
+            W[k] = R(k, i);
+        }
+        double beta = 1 / (s + std::abs(R(i, i)) * sqrt(s));
+
+        Matrix H = Matrix::eyes(R.rows) - W * W.T() * beta;
+        R = H * R;
+        Q = H * Q;
+    }
+    return {Q, R};
 }

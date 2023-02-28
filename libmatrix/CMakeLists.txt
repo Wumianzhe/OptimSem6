@@ -1,1 +1,1 @@
-add_library(simplemat matrix.cpp)
+add_library(simplemat matrix.cpp vector.cpp)

@@ -16,3 +16,41 @@ double vector_t::eqNorm() const {
 }
 
 double norm(const vector_t& v) { return v.eqNorm(); }
+
+bool vector_t::operator>(const double R) const {
+    for (double el : _data) {
+        if (el <= R) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool vector_t::operator<(const double R) const {
+    for (double el : _data) {
+        if (el >= R) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool vector_t::operator>=(const double R) const {
+    for (double el : _data) {
+        if (el < R) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool vector_t::operator<=(const double R) const {
+    for (double el : _data) {
+        if (el > R) {
+            return false;
+        }
+    }
+    return true;
+}
+
+double dot(const vector_t& r, const vector_t& l) { return (r.T() * l)(0, 0); }
