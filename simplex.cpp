@@ -8,9 +8,14 @@ struct {
     set<int> supSet;
     int size;
     vector<bool> mask;
+    bool first;
     set<int> next() {
-        if (!prev_permutation(mask.begin(), mask.end())) {
-            return {};
+        if (first) {
+            first = !first;
+        } else {
+            if (!prev_permutation(mask.begin(), mask.end())) {
+                return {};
+            }
         }
         set<int> perm;
         auto it = supSet.begin();
@@ -22,19 +27,11 @@ struct {
         }
         return perm;
     }
-    set<int> reset(set<int> L, int size) {
+    void reset(set<int> L, int size) {
         supSet = L;
         mask.resize(size, true);
         mask.resize(supSet.size(), false);
-        set<int> perm;
-        auto it = supSet.begin();
-        for (int i = 0; i < mask.size(); i++) {
-            if (mask[i]) {
-                perm.insert(*it);
-            }
-            it = std::next(it);
-        }
-        return perm;
+        first = true;
     }
 } generator;
 
@@ -44,7 +41,7 @@ set<int> merge(set<int> N, set<int> L) {
     return N;
 }
 vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk);
-set<int> fill(task_t t, set<int> N);
+set<int> fill(Matrix& A, set<int> N);
 double det(Matrix A);
 Matrix solve(Matrix A, Matrix b, Matrix& Ai);
 
@@ -53,24 +50,29 @@ vector_t simplex(task_t task, vector_t x0) {
     int n = task.A.cols;
     set<int> Nkp;
     set<int> Nk;
-    vector_t xk(0);
-    vector_t xkn = x0;
+    vector_t xk = x0;
     Matrix B = Matrix::eyes(m); // A^-1
-    bool gt = true;
-    do {
-
-        // refill each time, but should not be actually long
-        Nkp.clear();
-        for (int i = 0; i < n; i++) {
-            if (xk[i] != 0) {
-                Nkp.insert(i);
-            }
+    // 1.
+    for (int i = 0; i < n; i++) {
+        if (xk[i] != 0) {
+            Nkp.insert(i);
         }
-        if (Nkp.size() < m) {
-            Nk = fill(task, Nkp);
-        } else {
-            Nk = Nkp;
+    }
+    set<int> Lkp;
+    for (int i = 0; i < n; i++) {
+        if (Nkp.find(i) == Nkp.end()) {
+            Lkp.insert(i);
         }
+    }
+    if (Nkp.size() < m) {
+        generator.reset(Lkp, m - Nkp.size());
+        Nk = fill(task.A, Nkp);
+    } else {
+        Nk = Nkp;
+    }
+    Matrix ykT = solve(task.A[Nk], task.b, B);
+    // 2.
+    while (true) {
         // Lk = N \ Nk (not Nkp!)
         set<int> Lk;
         for (int i = 0; i < n; i++) {
@@ -78,26 +80,68 @@ vector_t simplex(task_t task, vector_t x0) {
                 Lk.insert(i);
             }
         }
-        // always solving for now, shortcut is WIP
-        Matrix ykT = solve(task.A[Nk], task.b, B);
-        Matrix dk = task.C.T() - ykT * task.A; // using full vector so there's no index confusion later
-        // dk[Lk] >= 0
-        for (int i = 0; i < Lk.size(); i++) {
-            if (dk(i, 0) < 0) {
-                gt = false;
-                break;
+        // whole vector to avoid index confusion like in 3.b
+        vector_t dk = task.C.T() - ykT * task.A;
+        // 3.a
+        auto it = find_if(dk.begin(), dk.end(), [&dk](int j) {
+            // to avoid -0
+            return (abs(dk[j]) > 1e-12) && (dk[j] < 0);
+        });
+        // dk >= 0
+        if (it == dk.end()) {
+            return xk;
+        }
+        int jk = *it;
+        // 3.b
+        vector_t uknk = B * task.A[{jk}];
+        vector_t uk(n);
+        // copy using indices I need
+        int i = 0;
+        for (int index : Nk) {
+            uk[index] = uk[i++];
+        }
+        uk[jk] = -1; // rest is 0 by construction
+        // 4.a
+        set<int> P;
+        // equivalent of P = { i in N | uk[i] > 0}
+        copy_if(Nk.begin(), Nk.end(), inserter(P, P.end()), [&uk](int i) { return uk[i] > 0; });
+        if (P.size() == 0) {
+            throw logic_error("no lower bound");
+        }
+        // 4.b
+        int ik = *P.begin();
+        double thk = xk[ik] / uk[ik];
+        for (int i : P) {
+            if (xk[i] / uk[i] < thk) {
+                ik = i;
+                thk = xk[i] / uk[i];
             }
         }
-        int jk;
-        for (int j : Lk) {
-            if (dk(j, 0) < 0) {
-                jk = j;
-                break;
+        xk = xk - uk * thk;
+        // 5
+        if (abs(thk) > 1e-12) { // thk != 0
+            Matrix F = Matrix::eyes(n);
+            double div = uk[ik];
+            for (int i = 0; i < n; i++) {
+                if (i != ik) {
+                    F(i, ik) = -uk[i] / div;
+                } else {
+                    F(i, i) = 1 / div;
+                }
             }
+            B = F * B;
+            ykT = task.C.T() * B;
+            // swapping indices and resetting generator
+            Nk.erase(jk);
+            Nk.insert(ik);
+            Nkp.erase(jk);
+            Nkp.insert(ik);
+            generator.reset(Nkp, m - Nkp.size());
+        } else {
+            Nk = fill(task.A, Nkp);
+            ykT = solve(task.A[Nk], task.b, B);
         }
-        xk = genNext(task, B, xk, jk, Nk);
-    } while (!gt);
-    return xk;
+    }
 }
 
 // finding starting basic vector
@@ -156,24 +200,16 @@ vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk) {
     return xk1;
 }
 
-set<int> fill(task_t t, set<int> Np) {
+set<int> fill(Matrix& A, set<int> Np) {
     // initial fill, using leftmost vectors
-    int req = t.A.rows - Np.size();
-    set<int> L;
-    for (int i = 0; i < t.A.rows; i++) {
-        // if not already in set
-        if (Np.find(i) == Np.end()) {
-            L.insert(i);
-        }
-    }
-    set<int> perm = generator.reset(L, req);
+    set<int> perm = generator.next();
     // no exact comparison for doubles, should be det == 0
-    if (abs(det(t.A[merge(Np, perm)])) < eps) {
-        return merge(Np, perm);
-    }
     // std::prev_permutation is used to generate sequences, so there are no repeats
-    while (abs(det(t.A[merge(Np, perm)])) < eps) {
+    while (abs(det(A[merge(Np, perm)])) < eps) {
         perm = generator.next();
+        if (perm == set<int>{}) {
+            throw logic_error("looping");
+        }
     }
 
     return merge(Np, perm);
@@ -221,7 +257,8 @@ vector_t enumerate(task_t task) {
     for (int i = 0; i < n; i++) {
         N.insert(i);
     }
-    set<int> Nk = generator.reset(N, m);
+    generator.reset(N, m);
+    set<int> Nk = generator.next();
     // final combination is empty
     while (Nk != set<int>{}) {
         if (abs(det(task.A[Nk])) > eps) {
