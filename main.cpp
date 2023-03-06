@@ -19,20 +19,16 @@ int main(int argc, char* argv[]) {
     cout << prim.C.T() << endl;
     cout << prim.A << endl;
     cout << "b: " << prim.b.T() << endl;
-    auto dual = genDual(task, unbound, noneq);
-    cout << "Двойственная задача:\n";
-    cout << dual.C.T() << endl << dual.A << endl;
-    cout << "b: " << dual.b.T() << endl;
-    vector_t dualRoot = enumerate(dual);
-    cout << "Решение:";
-    cout << dualRoot.T() << endl;
-    cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
-    // vector<double> els = {1, 2, 3, 4, 5, 6, 2, 7, 8, 9, -10, -11, -3, -12, -13, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0};
-    // Matrix A(5, 5);
-    // copy(els.begin(), els.end(), A.begin());
-    // auto [Qt, R] = Matrix::QtRdecomp(A);
-    // Matrix Rinv = Matrix::RInverse(R);
-    // cout << A;
+    auto dualBeg = enumerate(prim);
+    // cout << "начальное приближение" << initBasic(prim);
+    // auto dual = genDual(task, unbound, noneq);
+    // cout << "Двойственная задача:\n";
+    // cout << dual.C.T() << endl << dual.A << endl;
+    // cout << "b: " << dual.b.T() << endl;
+    // vector_t dualRoot = enumerate(dual);
+    // cout << "Решение:";
+    // cout << dualRoot.T() << endl;
+    // cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
     return 0;
 }
 

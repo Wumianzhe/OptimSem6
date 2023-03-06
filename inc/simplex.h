@@ -9,6 +9,7 @@ struct task_t {
     vector_t b;
 };
 
+void genTest();
 vector_t simplex(task_t task, vector_t x0);
 vector_t initBasic(task_t task);
 std::set<int> comb(std::set<int> L, int count, bool reset);

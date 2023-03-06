@@ -1,12 +1,13 @@
 #include "simplex.h"
 #include <algorithm>
+#include <functional>
 
 using namespace std;
 
 double eps = 1e-8;
+double eps0 = 1e-12;
 struct {
     set<int> supSet;
-    int size;
     vector<bool> mask;
     bool first;
     set<int> next() {
@@ -29,11 +30,32 @@ struct {
     }
     void reset(set<int> L, int size) {
         supSet = L;
+        mask.resize(0);
         mask.resize(size, true);
         mask.resize(supSet.size(), false);
         first = true;
     }
 } generator;
+
+void genTest() {
+    generator.reset({1, 2, 3, 4, 5}, 3);
+    set<int> perm = generator.next();
+    while (perm != set<int>{}) {
+        cout << "{";
+        for (int i : perm) {
+            cout << " " << i;
+        }
+        cout << "}\n";
+        perm = generator.next();
+    }
+}
+void trim(Matrix& v) {
+    for (auto& el : v) {
+        if (abs(el) < eps0) {
+            el = 0;
+        }
+    }
+}
 
 // should not alter initial objects
 set<int> merge(set<int> N, set<int> L) {
@@ -44,67 +66,67 @@ vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk);
 set<int> fill(Matrix& A, set<int> N);
 double det(Matrix A);
 Matrix solve(Matrix A, Matrix b, Matrix& Ai);
+Matrix inverse(Matrix A);
+void set_filter(const set<int>& supSet, set<int>& resSet, const function<bool(int)>& pred) {
+    copy_if(supSet.begin(), supSet.end(), inserter(resSet, resSet.end()), pred);
+}
 
-vector_t simplex(task_t task, vector_t x0) {
+vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
     int m = task.A.rows;
     int n = task.A.cols;
+    set<int> N; // so I can replace most of for loops with set_filter
+    for (int i = 0; i < n; i++) {
+        N.insert(i);
+    }
     set<int> Nkp;
     set<int> Nk;
     vector_t xk = x0;
     Matrix B = Matrix::eyes(m); // A^-1
     // 1.
-    for (int i = 0; i < n; i++) {
-        if (xk[i] != 0) {
-            Nkp.insert(i);
-        }
-    }
+    set_filter(N, Nkp, [&](int i) { return (xk[i] != 0); });
     set<int> Lkp;
-    for (int i = 0; i < n; i++) {
-        if (Nkp.find(i) == Nkp.end()) {
-            Lkp.insert(i);
+    set_filter(N, Lkp, [&](int i) { return (Nkp.find(i) == Nkp.end()); });
+    generator.reset(Lkp, m - Nkp.size());
+    if (Nk0 != set<int>{}) {
+        Nk = Nk0;
+    } else {
+        if (Nkp.size() < m) {
+            Nk = fill(task.A, Nkp);
+        } else {
+            Nk = Nkp;
         }
     }
-    if (Nkp.size() < m) {
-        generator.reset(Lkp, m - Nkp.size());
-        Nk = fill(task.A, Nkp);
-    } else {
-        Nk = Nkp;
-    }
-    Matrix ykT = solve(task.A[Nk], task.b, B);
+    // Matrix ykT = solve(task.A[Nk], task.C.T()[Nk].T(), B).T();
+    B = inverse(task.A[Nk]);
     // 2.
     while (true) {
         // Lk = N \ Nk (not Nkp!)
         set<int> Lk;
-        for (int i = 0; i < n; i++) {
-            if (Nk.find(i) == Nk.end()) {
-                Lk.insert(i);
-            }
-        }
+        set_filter(Lkp, Lk, [&](int i) { return (Nk.find(i) == Nk.end()); });
         // whole vector to avoid index confusion like in 3.b
-        vector_t dk = task.C.T() - ykT * task.A;
+        vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
+        trim(dk);
         // 3.a
-        auto it = find_if(dk.begin(), dk.end(), [&dk](int j) {
-            // to avoid -0
-            return (abs(dk[j]) > 1e-12) && (dk[j] < 0);
-        });
+        auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
         // dk >= 0
-        if (it == dk.end()) {
+        if (it == Lk.end()) {
             return xk;
         }
         int jk = *it;
         // 3.b
         vector_t uknk = B * task.A[{jk}];
+        trim(uknk);
         vector_t uk(n);
         // copy using indices I need
         int i = 0;
         for (int index : Nk) {
-            uk[index] = uk[i++];
+            uk[index] = uknk[i++];
         }
         uk[jk] = -1; // rest is 0 by construction
         // 4.a
         set<int> P;
         // equivalent of P = { i in N | uk[i] > 0}
-        copy_if(Nk.begin(), Nk.end(), inserter(P, P.end()), [&uk](int i) { return uk[i] > 0; });
+        set_filter(Nk, P, [&](int i) { return uk[i] > 0; });
         if (P.size() == 0) {
             throw logic_error("no lower bound");
         }
@@ -118,28 +140,41 @@ vector_t simplex(task_t task, vector_t x0) {
             }
         }
         xk = xk - uk * thk;
+        // to prevent -0. Limits maximum precision, but should prevent many bugs
+        trim(xk);
+        // cout << "Iter: theta: ";
+        // cout << thk << ", C: " << dot(task.C, xk) << ", x: " << xk.T();
+        // cout << "dk: " << dk.T();
         // 5
-        if (abs(thk) > 1e-12) { // thk != 0
-            Matrix F = Matrix::eyes(n);
+        if (abs(thk) > eps0) { // thk != 0
+            Matrix F = Matrix::eyes(m);
+            // F dimensions are m,m. So it's possible to go out of bounds
+            int dist = distance(Nk.begin(), find(Nk.begin(), Nk.end(), ik));
             double div = uk[ik];
-            for (int i = 0; i < n; i++) {
-                if (i != ik) {
-                    F(i, ik) = -uk[i] / div;
+            for (int i = 0; i < m; i++) {
+                if (i != dist) {
+                    F(i, dist) = -uknk[i] / div;
                 } else {
                     F(i, i) = 1 / div;
                 }
+                it++;
             }
             B = F * B;
-            ykT = task.C.T() * B;
-            // swapping indices and resetting generator
-            Nk.erase(jk);
-            Nk.insert(ik);
-            Nkp.erase(jk);
-            Nkp.insert(ik);
-            generator.reset(Nkp, m - Nkp.size());
+            // recalculating sets
+            Nk.erase(ik);
+            Nk.insert(jk);
+            Lk.erase(jk);
+            Lk.insert(ik);
+
+            Nkp.clear();
+            set_filter(N, Nkp, [&](int i) { return xk[i] > 0; });
+            Lkp.clear();
+            set_filter(N, Lkp, [&](int i) { return xk[i] == 0; });
+            generator.reset(Lk, m - Nkp.size());
         } else {
             Nk = fill(task.A, Nkp);
-            ykT = solve(task.A[Nk], task.b, B);
+            auto Ak = task.A[Nk];
+            B = inverse(Ak);
         }
     }
 }
@@ -162,15 +197,19 @@ vector_t initBasic(task_t task) {
     vector_t x0(n + m);
     for (int i = 0; i < m; i++) {
         if (task.b[i] >= 0) {
-            x0[i] = task.b[i];
+            x0[n + i] = task.b[i];
         } else {
-            x0[i] = -task.b[i];
+            x0[n + i] = -task.b[i];
             for (int j = 0; j < n + m; j++) {
                 secA(i, j) *= -1;
             }
         }
     }
-    return simplex({secC, secA, task.b}, x0);
+    set<int> Nk0;
+    for (int i = 0; i < m; i++) {
+        Nk0.insert(i + n);
+    }
+    return simplex({secC, secA, task.b}, x0, Nk0);
 }
 
 vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk) {
@@ -213,6 +252,11 @@ set<int> fill(Matrix& A, set<int> Np) {
     }
 
     return merge(Np, perm);
+}
+
+Matrix inverse(Matrix A) {
+    auto [Qt, R] = Matrix::QtRdecomp(A);
+    return Matrix::RInverse(R) * Qt;
 }
 
 // requires det!=0 due to gauss
@@ -264,6 +308,7 @@ vector_t enumerate(task_t task) {
         if (abs(det(task.A[Nk])) > eps) {
             // x_t is only using m indices, while n are needed for sizes to match
             vector_t x_t = solve(task.A[Nk], task.b, B);
+            trim(x_t);
             if (!(x_t >= 0)) {
                 Nk = generator.next();
                 continue;
@@ -275,6 +320,7 @@ vector_t enumerate(task_t task) {
                 x_tFull[*it] = x_t(i, 0);
                 it++;
             }
+            cout << x_tFull.T();
             // compiler doesn't know it's 1x1
             if (dot(task.C, x_tFull) > dot(task.C, x)) {
                 copy(x_tFull.begin(), x_tFull.end(), x.begin());
