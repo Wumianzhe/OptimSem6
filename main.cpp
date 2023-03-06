@@ -20,7 +20,9 @@ int main(int argc, char* argv[]) {
     cout << prim.A << endl;
     cout << "b: " << prim.b.T() << endl;
     auto dualBeg = enumerate(prim);
-    // cout << "начальное приближение" << initBasic(prim);
+    auto init = initBasic(prim);
+    auto primSol = simplex(task, init, {});
+    cout << primSol;
     // auto dual = genDual(task, unbound, noneq);
     // cout << "Двойственная задача:\n";
     // cout << dual.C.T() << endl << dual.A << endl;

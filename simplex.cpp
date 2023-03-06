@@ -96,7 +96,6 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             Nk = Nkp;
         }
     }
-    // Matrix ykT = solve(task.A[Nk], task.C.T()[Nk].T(), B).T();
     B = inverse(task.A[Nk]);
     // 2.
     while (true) {
@@ -105,6 +104,8 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         set_filter(Lkp, Lk, [&](int i) { return (Nk.find(i) == Nk.end()); });
         // whole vector to avoid index confusion like in 3.b
         vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
+        cout << "\nIter xk: " << xk.T();
+        cout << "dk: " << dk.T();
         trim(dk);
         // 3.a
         auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
@@ -123,6 +124,7 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             uk[index] = uknk[i++];
         }
         uk[jk] = -1; // rest is 0 by construction
+        cout << "uk: " << uk.T();
         // 4.a
         set<int> P;
         // equivalent of P = { i in N | uk[i] > 0}
@@ -142,24 +144,22 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         xk = xk - uk * thk;
         // to prevent -0. Limits maximum precision, but should prevent many bugs
         trim(xk);
-        // cout << "Iter: theta: ";
-        // cout << thk << ", C: " << dot(task.C, xk) << ", x: " << xk.T();
-        // cout << "dk: " << dk.T();
+        cout << "theta: " << thk << ", C: " << dot(task.C, xk) << ", x_n: " << xk.T();
         // 5
         if (abs(thk) > eps0) { // thk != 0
-            Matrix F = Matrix::eyes(m);
-            // F dimensions are m,m. So it's possible to go out of bounds
-            int dist = distance(Nk.begin(), find(Nk.begin(), Nk.end(), ik));
-            double div = uk[ik];
-            for (int i = 0; i < m; i++) {
-                if (i != dist) {
-                    F(i, dist) = -uknk[i] / div;
-                } else {
-                    F(i, i) = 1 / div;
-                }
-                it++;
-            }
-            B = F * B;
+            // Matrix F = Matrix::eyes(m);
+            // // F dimensions are m,m. So it's possible to go out of bounds
+            // int dist = distance(Nk.begin(), find(Nk.begin(), Nk.end(), ik));
+            // double div = uk[ik];
+            // for (int i = 0; i < m; i++) {
+            //     if (i != dist) {
+            //         F(i, dist) = -uknk[i] / div;
+            //     } else {
+            //         F(i, i) = 1 / div;
+            //     }
+            //     it++;
+            // }
+            // B = F * B;
             // recalculating sets
             Nk.erase(ik);
             Nk.insert(jk);
@@ -170,6 +170,8 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             set_filter(N, Nkp, [&](int i) { return xk[i] > 0; });
             Lkp.clear();
             set_filter(N, Lkp, [&](int i) { return xk[i] == 0; });
+            // using F can swap indices (A[Nk] is always in ascending order, which is not guaranteed with F), which leads to incorrect answers
+            B = inverse(task.A[Nk]);
             generator.reset(Lk, m - Nkp.size());
         } else {
             Nk = fill(task.A, Nkp);
@@ -209,7 +211,15 @@ vector_t initBasic(task_t task) {
     for (int i = 0; i < m; i++) {
         Nk0.insert(i + n);
     }
-    return simplex({secC, secA, task.b}, x0, Nk0);
+    vector_t res = simplex({secC, secA, task.b}, x0, Nk0);
+    for (int i = 0; i < m; i++) {
+        if (res[n + i] > 0) {
+            throw logic_error("Empty solution space");
+        }
+    }
+    vector_t xInit(n);
+    copy(res.begin(), res.begin() + n, xInit.begin());
+    return xInit;
 }
 
 vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk) {
