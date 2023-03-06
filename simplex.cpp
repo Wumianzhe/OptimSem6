@@ -5,7 +5,7 @@
 using namespace std;
 
 double eps = 1e-8;
-double eps0 = 1e-14;
+double eps0 = 2e-12;
 struct {
     set<int> supSet;
     vector<bool> mask;
@@ -62,7 +62,6 @@ set<int> merge(set<int> N, set<int> L) {
     N.merge(L);
     return N;
 }
-vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk);
 set<int> fill(Matrix& A, set<int> N);
 double det(Matrix A);
 Matrix solve(Matrix A, Matrix b, Matrix& Ai);
@@ -104,9 +103,9 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         set_filter(Lkp, Lk, [&](int i) { return (Nk.find(i) == Nk.end()); });
         // whole vector to avoid index confusion like in 3.b
         vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
+        trim(dk);
         // cout << "\nIter xk: " << xk.T();
         // cout << "dk: " << dk.T();
-        trim(dk);
         // 3.a
         auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
         // dk >= 0
@@ -201,8 +200,9 @@ vector_t initBasic(task_t task) {
         if (task.b[i] >= 0) {
             x0[n + i] = task.b[i];
         } else {
-            x0[n + i] = -task.b[i];
-            for (int j = 0; j < n + m; j++) {
+            task.b[i] *= -1;
+            x0[n + i] = task.b[i];
+            for (int j = 0; j < n; j++) {
                 secA(i, j) *= -1;
             }
         }
@@ -213,40 +213,13 @@ vector_t initBasic(task_t task) {
     }
     vector_t res = simplex({secC, secA, task.b}, x0, Nk0);
     for (int i = 0; i < m; i++) {
-        if (res[n + i] > 0) {
+        if (res[n + i] > 0 && abs(res[n + i]) > 3e-11) {
             throw logic_error("Empty solution space");
         }
     }
     vector_t xInit(n);
     copy(res.begin(), res.begin() + n, xInit.begin());
     return xInit;
-}
-
-vector_t genNext(task_t task, Matrix B, vector_t xk, int jk, set<int> Nk) {
-    int n = task.A.cols;
-    int m = task.A.rows;
-    vector_t uk(task.A.cols); // initialized with zeroes
-    auto uknk = B * task.A[{jk}];
-    bool lt = true;
-    // there's no Nk[i] so I have to iterate
-    for (int i : Nk) {
-        uk[i] = uknk(i, 0);
-        if (uk[i] > 0) {
-            lt = false;
-        }
-    }
-    uk[jk] = -1;
-    if (lt) {
-        throw logic_error("No lower bound");
-    }
-    double thk = 0;
-    for (int i : Nk) {
-        if (uk[i] > 0 && xk[i] / uk[i] < thk) {
-            thk = xk[i] / uk[i];
-        }
-    }
-    Matrix xk1 = xk - uk * thk; // I didn't make a move constructor
-    return xk1;
 }
 
 set<int> fill(Matrix& A, set<int> Np) {

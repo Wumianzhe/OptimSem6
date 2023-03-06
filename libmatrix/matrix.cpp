@@ -38,11 +38,16 @@ Matrix Matrix::operator*(const Matrix R) const {
         throw std::runtime_error("matrix size mismatch");
     }
     Matrix res(this->rows, R.cols);
+    // using KahanSum in attempt to reduce errors
     for (int i = 0; i < res.rows; i++) {
         for (int j = 0; j < res.cols; j++) {
             res(i, j) = 0;
+            double c = 0; // compensator
             for (int k = 0; k < R.rows; k++) {
-                res(i, j) += el(i, k) * R(k, j);
+                double y = el(i, k) * R(k, j) - c;
+                double t = res(i, j) + y;
+                c = (t - res(i, j)) - y;
+                res(i, j) = t;
             }
         }
     }
@@ -198,9 +203,9 @@ std::pair<Matrix, Matrix> Matrix::QtRdecomp(const Matrix& A) {
         for (int k = i + 1; k < m; k++) {
             W[k] = R(k, i);
         }
-        double beta = 1 / (s + std::abs(R(i, i)) * sqrt(s));
+        // double beta = 1 / (s + std::abs(R(i, i)) * sqrt(s));
 
-        Matrix H = Matrix::eyes(R.rows) - W * W.T() * beta;
+        Matrix H = Matrix::eyes(R.rows) - W * W.T() / (s + std::abs(R(i, i)) * sqrt(s));
         R = H * R;
         Q = H * Q;
     }

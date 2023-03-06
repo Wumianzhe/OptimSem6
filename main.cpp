@@ -20,7 +20,7 @@ int main(int argc, char* argv[]) {
     cout << prim.A << endl;
     cout << "b: " << prim.b.T() << endl;
     auto init = initBasic(prim);
-    auto primSol = simplex(task, init, {});
+    auto primSol = simplex(prim, init, {});
     auto dual = genDual(task, unbound, noneq);
     cout << "Решение:";
     cout << primSol.T() << endl;
