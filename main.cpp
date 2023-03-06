@@ -19,18 +19,19 @@ int main(int argc, char* argv[]) {
     cout << prim.C.T() << endl;
     cout << prim.A << endl;
     cout << "b: " << prim.b.T() << endl;
-    auto dualBeg = enumerate(prim);
     auto init = initBasic(prim);
     auto primSol = simplex(task, init, {});
-    cout << primSol;
-    // auto dual = genDual(task, unbound, noneq);
-    // cout << "Двойственная задача:\n";
-    // cout << dual.C.T() << endl << dual.A << endl;
-    // cout << "b: " << dual.b.T() << endl;
-    // vector_t dualRoot = enumerate(dual);
-    // cout << "Решение:";
-    // cout << dualRoot.T() << endl;
-    // cout << "Значение целевой функции: " << dual.C.T() * dualRoot;
+    auto dual = genDual(task, unbound, noneq);
+    cout << "Решение:";
+    cout << primSol.T() << endl;
+    cout << "Значение целевой функции: " << dot(prim.C, primSol) << endl;
+    cout << "Двойственная задача:\n";
+    cout << dual.C.T() << endl << dual.A << endl;
+    cout << "b: " << dual.b.T() << endl;
+    vector_t dualSol = enumerate(dual);
+    cout << "Решение:";
+    cout << dualSol.T() << endl;
+    cout << "Значение целевой функции: " << dot(dual.C, dualSol) << endl;
     return 0;
 }
 

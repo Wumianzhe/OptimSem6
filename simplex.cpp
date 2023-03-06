@@ -5,7 +5,7 @@
 using namespace std;
 
 double eps = 1e-8;
-double eps0 = 1e-12;
+double eps0 = 1e-14;
 struct {
     set<int> supSet;
     vector<bool> mask;
@@ -104,8 +104,8 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         set_filter(Lkp, Lk, [&](int i) { return (Nk.find(i) == Nk.end()); });
         // whole vector to avoid index confusion like in 3.b
         vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
-        cout << "\nIter xk: " << xk.T();
-        cout << "dk: " << dk.T();
+        // cout << "\nIter xk: " << xk.T();
+        // cout << "dk: " << dk.T();
         trim(dk);
         // 3.a
         auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
@@ -124,7 +124,7 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             uk[index] = uknk[i++];
         }
         uk[jk] = -1; // rest is 0 by construction
-        cout << "uk: " << uk.T();
+        // cout << "uk: " << uk.T();
         // 4.a
         set<int> P;
         // equivalent of P = { i in N | uk[i] > 0}
@@ -144,7 +144,7 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         xk = xk - uk * thk;
         // to prevent -0. Limits maximum precision, but should prevent many bugs
         trim(xk);
-        cout << "theta: " << thk << ", C: " << dot(task.C, xk) << ", x_n: " << xk.T();
+        // cout << "theta: " << thk << ", C: " << dot(task.C, xk) << ", x_n: " << xk.T();
         // 5
         if (abs(thk) > eps0) { // thk != 0
             // Matrix F = Matrix::eyes(m);
@@ -306,6 +306,7 @@ vector_t enumerate(task_t task) {
     int n = task.A.cols;
     Matrix B(m, m);
     vector_t x(n);
+    bool first = true;
     // just build all matrices and test solutions
     set<int> N;
     for (int i = 0; i < n; i++) {
@@ -330,10 +331,15 @@ vector_t enumerate(task_t task) {
                 x_tFull[*it] = x_t(i, 0);
                 it++;
             }
-            cout << x_tFull.T();
+            // cout << x_tFull.T();
             // compiler doesn't know it's 1x1
-            if (dot(task.C, x_tFull) > dot(task.C, x)) {
+            if (!first) {
+                if (dot(task.C, x_tFull) > dot(task.C, x)) {
+                    copy(x_tFull.begin(), x_tFull.end(), x.begin());
+                }
+            } else {
                 copy(x_tFull.begin(), x_tFull.end(), x.begin());
+                first = false;
             }
         }
         Nk = generator.next();
