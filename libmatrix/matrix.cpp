@@ -38,7 +38,7 @@ Matrix Matrix::operator*(const Matrix R) const {
         throw std::runtime_error("matrix size mismatch");
     }
     Matrix res(this->rows, R.cols);
-    // using KahanSum in attempt to reduce errors
+    // using Kahan sum in attempt to reduce errors
     for (int i = 0; i < res.rows; i++) {
         for (int j = 0; j < res.cols; j++) {
             res(i, j) = 0;

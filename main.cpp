@@ -7,31 +7,48 @@
 
 using namespace std;
 
+enum extrem { min = -1, max = 1 };
+
 std::tuple<task_t, set<int>, set<int>> read(string filename);
 vector<string> split(string line, char sep);
 task_t genCanon(task_t task, set<int>& unbound, set<int>& noneq, int sign);
-task_t genDual(task_t task, set<int>& unbound, set<int>& noneq);
+std::tuple<task_t, set<int>, set<int>> genDual(task_t task, set<int>& unbound, set<int>& noneq);
+vector_t restore(vector_t& xCan, int size, set<int>& unbound);
 
 int main(int argc, char* argv[]) {
     auto [task, unbound, noneq] = read("task.csv");
-    auto prim = genCanon(task, unbound, noneq, -1);
+    auto prim = genCanon(task, unbound, noneq, extrem::min);
     cout << "Прямая задача:\n";
     cout << prim.C.T() << endl;
     cout << prim.A << endl;
     cout << "b: " << prim.b.T() << endl;
     auto init = initBasic(prim);
     auto primSol = simplex(prim, init, {});
-    auto dual = genDual(task, unbound, noneq);
-    cout << "Решение:";
-    cout << primSol.T() << endl;
+    // cout << "Решение:";
+    // cout << primSol.T() << endl;
+    cout << "Решение: " << restore(primSol, task.C.size(), unbound).T();
     cout << "Значение целевой функции: " << dot(prim.C, primSol) << endl;
-    cout << "Двойственная задача:\n";
-    cout << dual.C.T() << endl << dual.A << endl;
-    cout << "b: " << dual.b.T() << endl;
-    vector_t dualSol = enumerate(dual);
-    cout << "Решение:";
-    cout << dualSol.T() << endl;
-    cout << "Значение целевой функции: " << dot(dual.C, dualSol) << endl;
+
+    auto [dual, dUnbound, dNoneq] = genDual(task, unbound, noneq);
+    auto dualCan = genCanon(dual, dUnbound, dNoneq, extrem::max);
+    cout << "\n\nДвойственная задача:\n";
+    cout << dualCan.C.T() << endl << dualCan.A << endl;
+    cout << "b: " << dualCan.b.T() << endl;
+    vector_t dualCanSol = enumerate(dualCan);
+    // cout << "Решение:";
+    // cout << dualCanSol.T() << endl;
+    vector_t dualSol = restore(dualCanSol, dual.C.size(), dUnbound);
+    cout << "Решение: " << dualSol.T();
+    cout << "Значение целевой функции: " << dot(dualCan.C, dualCanSol) << endl;
+
+    set<int> dualNoneq;
+    for (int i = 0; i < dualSol.size(); i++) {
+        if (dualSol[i] != 0) {
+            dualNoneq.insert(i);
+        }
+    }
+    cout << "Восстановленное по решению двойственной задачи решение прямой: ";
+    cout << solve(task.A.T()[dualNoneq].T(), task.b.T()[dualNoneq].T()).T();
     return 0;
 }
 
@@ -59,7 +76,8 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
         if (words[width] != "EQ") {
             noneqIndices.insert(i);
             if (words[width] == "LT") {
-                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width, [](double d) { return -1 * d; });
+                transform(A.begin() + i * width, A.begin() + (i + 1) * width, A.begin() + i * width,
+                          [](double d) { return -1 * d; });
                 b[i] *= -1;
             }
         }
@@ -68,7 +86,8 @@ std::tuple<task_t, set<int>, set<int>> read(string filename) {
     getline(in, line);
     auto words = split(line, ',');
     set<int> unboundIndices;
-    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()), [](string& str) { return stoi(str) - 1; });
+    transform(words.begin(), words.end(), inserter(unboundIndices, unboundIndices.end()),
+              [](string& str) { return stoi(str) - 1; });
     // I almost forgot i store in column-major, so consecutive areas are columns, not rows
     return {{C, A.T(), b}, unboundIndices, noneqIndices};
 }
@@ -100,7 +119,7 @@ task_t genCanon(task_t task, set<int>& unbound, set<int>& noneq, int sign) {
     return {C, A, baseline.b};
 }
 
-task_t genDual(task_t task, set<int>& unbound, set<int>& noneq) {
+std::tuple<task_t, set<int>, set<int>> genDual(task_t task, set<int>& unbound, set<int>& noneq) {
     Matrix A(task.A.T());
     vector_t b = task.C;
     vector_t C = task.b;
@@ -120,7 +139,7 @@ task_t genDual(task_t task, set<int>& unbound, set<int>& noneq) {
             dualUnbound.insert(i);
         }
     }
-    return genCanon({C, A, b}, dualUnbound, dualNoneq, 1);
+    return {{C, A, b}, dualUnbound, dualNoneq};
 }
 
 vector<string> split(string line, char sep) {
@@ -130,4 +149,16 @@ vector<string> split(string line, char sep) {
         ret.push_back(word);
     }
     return ret;
+}
+
+vector_t restore(vector_t& xCan, int size, set<int>& unbound) {
+    vector_t res(size);
+    copy(xCan.begin(), xCan.begin() + size, res.begin());
+    for (int i : unbound) {
+        int ord = distance(unbound.begin(), find(unbound.begin(), unbound.end(), i));
+        if (xCan[size + ord] > 0) {
+            res[i] -= xCan[size + ord];
+        }
+    }
+    return res;
 }

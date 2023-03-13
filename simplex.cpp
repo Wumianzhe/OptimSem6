@@ -5,7 +5,7 @@
 using namespace std;
 
 double eps = 1e-8;
-double eps0 = 2e-12;
+double eps0 = 1e-13;
 struct {
     set<int> supSet;
     vector<bool> mask;
@@ -37,15 +37,18 @@ struct {
     }
 } generator;
 
+void setPrint(set<int> N) {
+    cout << "{";
+    for (int i : N) {
+        cout << " " << i;
+    }
+    cout << "}\n";
+}
 void genTest() {
     generator.reset({1, 2, 3, 4, 5}, 3);
     set<int> perm = generator.next();
     while (perm != set<int>{}) {
-        cout << "{";
-        for (int i : perm) {
-            cout << " " << i;
-        }
-        cout << "}\n";
+        setPrint(perm);
         perm = generator.next();
     }
 }
@@ -63,8 +66,6 @@ set<int> merge(set<int> N, set<int> L) {
     return N;
 }
 set<int> fill(Matrix& A, set<int> N);
-double det(Matrix A);
-Matrix solve(Matrix A, Matrix b, Matrix& Ai);
 Matrix inverse(Matrix A);
 void set_filter(const set<int>& supSet, set<int>& resSet, const function<bool(int)>& pred) {
     copy_if(supSet.begin(), supSet.end(), inserter(resSet, resSet.end()), pred);
@@ -105,6 +106,7 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
         trim(dk);
         // cout << "\nIter xk: " << xk.T();
+        // setPrint(Nk);
         // cout << "dk: " << dk.T();
         // 3.a
         auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
@@ -169,7 +171,8 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             set_filter(N, Nkp, [&](int i) { return xk[i] > 0; });
             Lkp.clear();
             set_filter(N, Lkp, [&](int i) { return xk[i] == 0; });
-            // using F can swap indices (A[Nk] is always in ascending order, which is not guaranteed with F), which leads to incorrect answers
+            // using F can swap indices (A[Nk] is always in ascending order, which is not guaranteed with F), which
+            // leads to incorrect answers
             B = inverse(task.A[Nk]);
             generator.reset(Lk, m - Nkp.size());
         } else {
@@ -243,7 +246,7 @@ Matrix inverse(Matrix A) {
 }
 
 // requires det!=0 due to gauss
-Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
+Matrix solve(Matrix A, Matrix b) {
     int m = A.rows;
     auto [Qt, R] = Matrix::QtRdecomp(A);
     b = Qt * b;
@@ -257,7 +260,6 @@ Matrix solve(Matrix A, Matrix b, Matrix& Ainv) {
         double x = (b(i, 0) - s) / R(i, i);
         res[i] = x;
     }
-    Ainv = Matrix::RInverse(R) * Qt;
     return res;
 }
 
@@ -277,7 +279,6 @@ double det(Matrix A) {
 vector_t enumerate(task_t task) {
     int m = task.A.rows;
     int n = task.A.cols;
-    Matrix B(m, m);
     vector_t x(n);
     bool first = true;
     // just build all matrices and test solutions
@@ -291,7 +292,7 @@ vector_t enumerate(task_t task) {
     while (Nk != set<int>{}) {
         if (abs(det(task.A[Nk])) > eps) {
             // x_t is only using m indices, while n are needed for sizes to match
-            vector_t x_t = solve(task.A[Nk], task.b, B);
+            vector_t x_t = solve(task.A[Nk], task.b);
             trim(x_t);
             if (!(x_t >= 0)) {
                 Nk = generator.next();
