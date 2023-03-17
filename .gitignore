@@ -3,4 +3,8 @@ tmp/
 
 build/
 .cache/
-notes.tex
+notes.*
+compile_commands.json
+
+!notes.org
+!notes.pdf
