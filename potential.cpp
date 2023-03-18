@@ -2,7 +2,13 @@
 #include <functional>
 #include <iostream>
 #include <sstream>
+#include <stack>
 
+enum dir {
+hor,vert
+};
+
+using coord_t = std::pair<int,int>;
 using namespace std;
 
 vector<string> split(string line, char sep);
@@ -75,4 +81,78 @@ vector<string> split(string line, char sep) {
         ret.push_back(word);
     }
     return ret;
+}
+
+void transpTask::buildInit() {
+    int m = a.size();
+    int n = b.size();
+    auto tmpa = a;
+    auto tmpb = b;
+    int i=0,j=0;
+    for (int k=0; k < m+n-1; k++) {
+        int x_k = min(tmpa[i],tmpb[j]);
+        tmpa[i] -= x_k;
+        tmpb[j] -= x_k;
+        X(i,j) = x_k;
+        if (tmpa[i] == 0) {
+            i++;
+            continue;
+        }
+        j++;
+        continue;
+    }
+}
+
+void transpTask::solvePot() {
+
+}
+
+bool transpTask::isOptimal() {
+    int m = a.size();
+    int n = b.size();
+    vector_t v(n);
+    vector_t u(m);
+
+    stack<pair<coord_t, dir>> evals;
+    for (int j = 0; j < n; j++) {
+        if (X(0, j) >= 0) {
+            evals.push({{0, j}, dir::vert});
+        }
+    }
+    // пока остались нерешённые ограничения
+    while (!evals.empty()) {
+        auto [coords, dir] = evals.top();
+        auto [i, j] = coords;
+        evals.pop();
+        if (dir == dir::vert) {
+            v[j] = C(i, j) - u[i];
+            for (int i = 0; i < m; i++) {
+                if (X(i, j) >= 0) {
+                    evals.push({{i, j}, dir::hor});
+                }
+            }
+        } else {
+            u[i] = C(i,j) - v[j];
+            for (int j=0; j < n; j++) {
+                if (X(i,j) >= 0) {
+                    evals.push({{i,j}, dir::vert});
+                }
+            }
+        }
+    }
+
+    bool optim = true;
+    for (int i=0; i < m; i++) {
+        for (int j=0; j < n; j++) {
+            int delta = C(i,j) - v[j] + u[i];
+            if (delta < 0) {
+                optim = false;
+            }
+            if (abs(delta) > dMaxCell.first) {
+                dMaxCell.first = abs(delta);
+                dMaxCell.second = {i,j};
+            }
+        }
+    }
+    return optim;
 }
