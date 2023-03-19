@@ -4,14 +4,13 @@
 #include <sstream>
 #include <stack>
 
-enum dir {
-hor,vert
-};
+enum dir { hor, vert };
 
-using coord_t = std::pair<int,int>;
+using coord_t = std::pair<int, int>;
 using namespace std;
 
 vector<string> split(string line, char sep);
+bool buildCycleInt(const Matrix& X, vector<coord_t>& cycle, coord_t fin, vector<coord_t>& cand, dir d);
 transpTask readTransport(string filename) {
     fstream in(filename);
     int height, width;
@@ -48,17 +47,17 @@ transpTask readTransport(string filename) {
 
     // open to closed conversion
     int sum = 0;
-    for (int i=0 ; i < height; i ++ ) {
+    for (int i = 0; i < height; i++) {
         sum += a[i];
     }
-    for (int j=0; j < width; j++) {
+    for (int j = 0; j < width; j++) {
         sum -= b[j];
     }
     // more required than provided
     if (sum < 0) {
-        C.resize(width,height+1);
-        for (int i=0; i < width; i++) {
-            C(i,height) = p[i];
+        C.resize(width, height + 1);
+        for (int i = 0; i < width; i++) {
+            C(i, height) = p[i];
         }
     }
 
@@ -66,9 +65,9 @@ transpTask readTransport(string filename) {
 
     // more provided than required
     if (sum > 0) {
-        C.resize(height, width+1);
-        for (int i=0; i < height; i++) {
-            C(i,width) = 0;
+        C.resize(height, width + 1);
+        for (int i = 0; i < height; i++) {
+            C(i, width) = 0;
         }
     }
     return {C, a, b};
@@ -88,12 +87,12 @@ void transpTask::buildInit() {
     int n = b.size();
     auto tmpa = a;
     auto tmpb = b;
-    int i=0,j=0;
-    for (int k=0; k < m+n-1; k++) {
-        int x_k = min(tmpa[i],tmpb[j]);
+    int i = 0, j = 0;
+    for (int k = 0; k < m + n - 1; k++) {
+        int x_k = min(tmpa[i], tmpb[j]);
         tmpa[i] -= x_k;
         tmpb[j] -= x_k;
-        X(i,j) = x_k;
+        X(i, j) = x_k;
         if (tmpa[i] == 0) {
             i++;
             continue;
@@ -104,7 +103,60 @@ void transpTask::buildInit() {
 }
 
 void transpTask::solvePot() {
+    while (!isOptimal()) {
+        auto cycle = buildCycle();
+    }
+}
 
+std::vector<std::pair<int, int>> transpTask::buildCycle() {
+    int m = a.size();
+    int n = b.size();
+    vector<coord_t> cycle;
+    auto [i, j] = dMaxCell.second;
+    vector<coord_t> initCand;
+    for (int i = 0; i < m; i++) {
+        if (X(i, j) >= 0) {
+            initCand.push_back({i, j});
+        }
+    }
+    buildCycleInt(X, cycle, dMaxCell.second, initCand, dir::hor);
+    return cycle;
+}
+
+bool buildCycleInt(const Matrix& X, vector<coord_t>& cycle, coord_t fin, vector<coord_t>& cand, dir d) {
+    int m = X.rows;
+    int n = X.cols;
+    vector<coord_t> nextCand;
+    for (auto coords : cand) {
+        auto [i,j] = coords;
+        if (d == dir::vert) {
+            // search in direction for end or for other candidates
+            for (int i = 0; i < m; i++) {
+                if (coords != pair{i,j} && X(i, j) >= 0) {
+                    nextCand.push_back({i, j});
+                }
+                if (fin == pair{i,j}) {
+                    cycle.push_back(coords);
+                    return true;
+                }
+            }
+        } else {
+            for (int j = 0; j < n; j++) {
+                if (coords != pair{i,j} && X(i, j) >= 0) {
+                    nextCand.push_back({i, j});
+                }
+                if (fin == pair{i,j}) {
+                    cycle.push_back(coords);
+                    return true;
+                }
+            }
+        }
+        if (buildCycleInt(X, cycle, fin, nextCand, (d == dir::vert) ? dir::hor : dir::vert)) {
+            cycle.push_back(coords);
+            return true;
+        }
+    }
+    return false;
 }
 
 bool transpTask::isOptimal() {
@@ -127,30 +179,30 @@ bool transpTask::isOptimal() {
         if (dir == dir::vert) {
             v[j] = C(i, j) - u[i];
             for (int i = 0; i < m; i++) {
-                if (X(i, j) >= 0) {
+                if (coords != pair{i,j} && X(i, j) >= 0) {
                     evals.push({{i, j}, dir::hor});
                 }
             }
         } else {
-            u[i] = C(i,j) - v[j];
-            for (int j=0; j < n; j++) {
-                if (X(i,j) >= 0) {
-                    evals.push({{i,j}, dir::vert});
+            u[i] = C(i, j) - v[j];
+            for (int j = 0; j < n; j++) {
+                if (coords != pair{i,j} && X(i, j) >= 0) {
+                    evals.push({{i, j}, dir::vert});
                 }
             }
         }
     }
 
     bool optim = true;
-    for (int i=0; i < m; i++) {
-        for (int j=0; j < n; j++) {
-            int delta = C(i,j) - v[j] + u[i];
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            int delta = C(i, j) - v[j] + u[i];
             if (delta < 0) {
                 optim = false;
             }
             if (abs(delta) > dMaxCell.first) {
                 dMaxCell.first = abs(delta);
-                dMaxCell.second = {i,j};
+                dMaxCell.second = {i, j};
             }
         }
     }

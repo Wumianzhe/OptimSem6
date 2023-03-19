@@ -14,6 +14,7 @@ struct transpTask {
     void buildInit();
     void solvePot();
     bool isOptimal();
+    std::vector<std::pair<int,int>> buildCycle();
 };
 
 transpTask readTransport(std::string filename);
