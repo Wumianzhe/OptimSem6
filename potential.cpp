@@ -105,6 +105,27 @@ void transpTask::buildInit() {
 void transpTask::solvePot() {
     while (!isOptimal()) {
         auto cycle = buildCycle();
+        for (auto [i,j] : cycle) {
+            cout << "{" << i << "," << j <<"} ";
+        }
+        cout << endl;
+        coord_t coords = cycle[1];
+        int theta = X(coords.first, coords.second);
+        // k = 1 is already "done"
+        for (int k = 3; k < cycle.size(); k += 2) {
+            if (X(cycle[k]) < theta) {
+                coords = cycle[k];
+                theta = X(cycle[k]);
+            }
+        }
+        X(cycle[0]) = theta;
+        int sign = -1;
+        for (int k = 1; k < cycle.size(); k++) {
+            X(cycle[k]) += theta * sign;
+            sign *= -1;
+        }
+        X(coords) = -1;
+        cout << X;
     }
 }
 
@@ -120,6 +141,8 @@ std::vector<std::pair<int, int>> transpTask::buildCycle() {
         }
     }
     buildCycleInt(X, cycle, dMaxCell.second, initCand, dir::hor);
+    cycle.insert(cycle.begin(), dMaxCell.second);
+    dMaxCell = {0, {0,0}};
     return cycle;
 }
 
@@ -128,26 +151,26 @@ bool buildCycleInt(const Matrix& X, vector<coord_t>& cycle, coord_t fin, vector<
     int n = X.cols;
     vector<coord_t> nextCand;
     for (auto coords : cand) {
-        auto [i,j] = coords;
+        auto [i, j] = coords;
         if (d == dir::vert) {
             // search in direction for end or for other candidates
+            if (fin.second == j) {
+                cycle.push_back(coords);
+                return true;
+            }
             for (int i = 0; i < m; i++) {
-                if (coords != pair{i,j} && X(i, j) >= 0) {
+                if (coords != pair{i, j} && X(i, j) >= 0) {
                     nextCand.push_back({i, j});
-                }
-                if (fin == pair{i,j}) {
-                    cycle.push_back(coords);
-                    return true;
                 }
             }
         } else {
+            if (fin.first == i) {
+                cycle.push_back(coords);
+                return true;
+            }
             for (int j = 0; j < n; j++) {
-                if (coords != pair{i,j} && X(i, j) >= 0) {
+                if (coords != pair{i, j} && X(i, j) >= 0) {
                     nextCand.push_back({i, j});
-                }
-                if (fin == pair{i,j}) {
-                    cycle.push_back(coords);
-                    return true;
                 }
             }
         }
@@ -177,14 +200,14 @@ bool transpTask::isOptimal() {
         auto [i, j] = coords;
         evals.pop();
         if (dir == dir::vert) {
-            v[j] = C(i, j) - u[i];
+            v[j] = C(i, j) + u[i];
             for (int i = 0; i < m; i++) {
                 if (coords != pair{i,j} && X(i, j) >= 0) {
                     evals.push({{i, j}, dir::hor});
                 }
             }
         } else {
-            u[i] = C(i, j) - v[j];
+            u[i] = v[j] - C(i, j);
             for (int j = 0; j < n; j++) {
                 if (coords != pair{i,j} && X(i, j) >= 0) {
                     evals.push({{i, j}, dir::vert});
@@ -197,10 +220,10 @@ bool transpTask::isOptimal() {
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
             int delta = C(i, j) - v[j] + u[i];
-            if (delta < 0) {
+            if (optim && delta < 0) {
                 optim = false;
             }
-            if (abs(delta) > dMaxCell.first) {
+            if (abs(delta) >= dMaxCell.first) {
                 dMaxCell.first = abs(delta);
                 dMaxCell.second = {i, j};
             }
