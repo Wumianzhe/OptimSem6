@@ -15,5 +15,5 @@ set(CMAKE_BUILD_TYPE Debug)
 include_directories("${PROJECT_SOURCE_DIR}/inc")
 
 add_subdirectory(libmatrix)
-add_executable(lab main.cpp)
-target_link_libraries(lab simplemat)
+add_executable(lab main.cpp linmethods.cpp)
+# target_link_libraries(lab simplemat)
