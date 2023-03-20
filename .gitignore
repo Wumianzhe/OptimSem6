@@ -3,6 +3,7 @@ tmp/
 
 build/
 .cache/
+figs/
 notes.*
 compile_commands.json
 .gdb_history
