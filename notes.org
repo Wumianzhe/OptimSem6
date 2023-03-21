@@ -1,0 +1,28 @@
+#+title: Notes
+#+LANGUAGE: ru
+#+LATEX_CLASS: article
+#+LATEX_CLASS_OPTIONS: [a4paper,fleqn,12pt]
+#+LATEX_HEADER: \usepackage[lmargin=15mm, rmargin=15mm, tmargin=2cm, bmargin=2cm]{geometry}
+
+* Постановка
+Найти
+\[
+\min f(x) \\ x \in \RR^{n}
+\]
+Строим $\{x_k\}$ --- релаксационную последовательность спуска: $f(x_{k+1}) \leq f(x_k)$, используя двухшаговую систему:
+$x_{k+1} = x_k + \alpha_k p_k$.
+
+* Градиентный метод наискорейшего спуска
+Выбираем $\epsilon > 0$, $x_0$, $0 < \alpha_0 < 1$ --- начальное приближение.
+
+На $k$​-й итерации:
+1. Вычисляем градиент $f$. Реализуется как вектор функций --- частных производных.
+2. Подбираем шаг: \(\alpha_{k} \in (0,1]: f(x_{k} - \alpha_{k}\nabla f(x_{k})) = \min\).
+   a. Метод золотого сечения
+   b. Метод дихотомии
+3. $x_{k+1} = x_k - \alpha_k \nabla f(x_k)$.
+
+#+begin_src julia
+x = range(0,10);
+f = @. x*x;
+#+end_src
