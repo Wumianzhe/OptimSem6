@@ -13,9 +13,16 @@
 f(x) = \frac{x}{1+x^2} \\ x \in [-1.5; 0]
 \]
 
+#+begin_src julia :session :exports none :results silent
+using StatsPlots
+using DataFrames
+using CSV
+#+end_src
+
+#+RESULTS:
+
 График функции
-#+begin_src julia :results file graphics :file "figs/plot.png" :ouput-dir figs :exports both :cache yes
-using Plots
+#+begin_src julia :results file graphics :file "figs/plot.png" :ouput-dir figs :exports both :cache yes :session
 f(x) =  x / (1 + x^2);
 a = -1.5;
 b = 0;
@@ -23,7 +30,7 @@ plot(range(a,b, length=100),f)
 savefig("figs/plot.png")
 #+end_src
 
-#+RESULTS:
+#+RESULTS[de5cf170d413271364c3b053c21ad1b2fa8e5025]:
 [[file:figs/plot.png]]
 
 Использовать методы золотого сечения, дихотомии, пробных точек
@@ -37,11 +44,7 @@ savefig("figs/plot.png")
 значениях функций и количества итераций от $\epsilon$
 #+name: plot
 #+header: :var name = "ratio"
-#+begin_src julia
-using CSV
-using DataFrames
-using StatsPlots
-
+#+begin_src julia :session :results silent
 df = CSV.read("build/res/" * name, DataFrame)
 # will have columns: eps delta fdelta iters
 p1 = @df df plot(:eps, [:eps :delta :fdelta], title="Ошибки");
@@ -49,8 +52,10 @@ plot!(p1, xscale=:log10, yscale=:log10, minorgrid=true, legend=:bottomright, xla
 p2 = @df df plot(:eps, :iters, title="Кол-во вызовов");
 plot!(p2, xscale=:log10, xlabel="eps", legend=:none);
 
-plot(p1,p2, layout=(1,2), title="name")
+plot(p1,p2, layout=(1,2))
+savefig("figs/" * name * ".png")
 #+end_src
+
 * Метод золотого сечения
 
 Рассмотрим $k$​-й шаг алгоритма. Интервал $[a_k,b_k]$
@@ -63,13 +68,29 @@ plot(p1,p2, layout=(1,2), title="name")
 
 #+call: plot(name="ratio")
 
-#+RESULTS:
-
 * Метод дихотомии
 
 Рассмотрим $k$​-й шаг алгоритма. Интервал $[a_k,b_k]$. Точки для проверки
 \(x_{1,2} = \frac{a_{k} + b_{k}}{2} \pm \delta\), \(\delta = 10^{-3} \abs{b - a}\). Сравним,
 выберем интервал.
+
+
+#+call: plot(name="dichotomy")
+
+** Оценка при постоянном $\delta$
+
+\[
+  b_1 - a_1 = \frac{b_0 - a_0}{2} + \delta
+\]
+\[
+  b_2 - a_2 = \frac{b_1-a_1}{2} + \delta = \frac{b_{0} + a_{0}}{4} + \delta ( 1 + \frac{1}{2} )
+\]
+\[
+  b_k - a_k = \frac{b_{0} - a_{0}}{2^{k}} + \delta \sum_{i=1}^k \frac{1}{2^{i-1}}
+\]
+
+
+
 * Метод пробных точек
 
 Рассмотрим $k$​-й шаг алгоритма. Интервал $[a_k,b_k]$. Точки для проверки
@@ -81,3 +102,5 @@ f(x_{2}) < f(x_{3}) \implies [x_{1},x_{3}]
 \[
   f(x_2) > f(x_3) \implies [x_2,b]
 \]
+
+#+call: plot(name="testPoints")
