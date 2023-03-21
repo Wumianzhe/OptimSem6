@@ -1,0 +1,3 @@
+[submodule "libmatrix"]
+	path = libmatrix
+	url = ssh://git@localhost:39901/srv/git/libmatrix.git

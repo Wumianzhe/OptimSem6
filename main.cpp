@@ -49,6 +49,11 @@ int main(int argc, char* argv[]) {
     }
     cout << "Восстановленное по решению двойственной задачи решение прямой: ";
     cout << solve(task.A.T()[dualNoneq].T(), task.b.T()[dualNoneq].T()).T();
+
+    cout << "\nПроверка условий применимости" << endl;
+    Matrix res19 = task.C.T() - dualSol.T() * task.A;
+    cout << "Условие 4.19: " << res19;
+    cout << "Условие 4.20: " << res19 * restore(primSol, task.C.size(), unbound);
     return 0;
 }
 
