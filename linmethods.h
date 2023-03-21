@@ -9,7 +9,7 @@ template <typename T> class LinMethod {
     virtual T solve(std::function<double(T)> f, T a, const T p, const double eps) = 0;
     LinMethod() = delete;
     virtual ~LinMethod(){};
-    void write(std::pair<double, double> eps_bounds, std::function<double(T)> f, T a, T p, double fact);
+    void write(std::pair<double, double> eps_bounds, std::function<double(T)> f, T a, T p, double fact, T x);
 
   protected:
     LinMethod(std::string name) : m_name(name) {}

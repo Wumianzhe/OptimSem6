@@ -1,7 +1,61 @@
 #include "linmethods.h"
 #include <cmath>
+#include <fstream>
+#include <iostream>
 
 using namespace std;
+
+template <typename T>
+void LinMethod<T>::write(std::pair<double, double> eps_bounds, std::function<double(T)> f, T a, T p, double fact, T x) {
+    array<T, 3> approx;
+    array<double, 3> epses;
+    array<int, 3> counts;
+    epses[0] = eps_bounds.first;
+    epses[2] = eps_bounds.second;
+    // sort epsilons
+    if (epses[0] < epses[2]) {
+        double tmp = epses[0];
+        epses[0] = epses[2];
+        epses[2] = tmp;
+    }
+    epses[1] = sqrt(epses[0] * epses[2]);
+
+    int counter = 0;
+    auto f_count = [&](T x) {
+        counter++;
+        return f(x);
+    };
+
+    approx[0] = solve(f_count, a, p, epses[0]);
+    counts[0] = counter;
+
+    counter = 0;
+    approx[1] = solve(f_count, a, p, epses[1]);
+    counts[1] = counter;
+
+    counter = 0;
+    approx[2] = solve(f_count, a, p, epses[2]);
+    counts[2] = counter;
+
+    cout << m_name << endl;
+    cout << std::scientific;
+    for (int i = 0; i < 3; i++) {
+        cout << "eps: " << epses[i] << " res: " << approx[i] << " calls: " << counts[i] << endl;
+        cout << "     delta: " << abs(approx[i] - x) << " fdelta: " << abs(f(approx[i]) - f(x));
+        cout << endl;
+    }
+    cout << endl;
+
+    ofstream file("res/" + m_name);
+    file << "eps,delta,fdelta,iters" << endl;
+    file << std::scientific;
+    for (double eps = epses[0]; eps > epses[2]; eps /= fact) {
+        counter = 0;
+        T approx = solve(f_count, a, p, eps);
+        file << eps << "," << max(1e-16, abs(approx - x)) << "," << max(1e-16, abs(f(approx) - f(x))) << "," << counter
+             << endl;
+    }
+}
 
 template <typename T> T Ratio<T>::solve(function<double(T)> f, T a, const T p_0, const double eps) {
     const double alpha = (3 - sqrt(5)) / 2;
@@ -11,7 +65,7 @@ template <typename T> T Ratio<T>::solve(function<double(T)> f, T a, const T p_0,
     array<double, 2> vals;
     vals[0] = f(lambda);
     vals[1] = f(mu);
-    while (abs(vals[1] - vals[0]) > eps) {
+    while (abs(lambda - mu) > eps) {
         if (vals[0] > vals[1]) {
             p *= 1 - alpha;
             a = lambda;
@@ -34,16 +88,16 @@ template <typename T> T Ratio<T>::solve(function<double(T)> f, T a, const T p_0,
 
 template <typename T> T Dichotomy<T>::solve(function<double(T)> f, T a, const T p_0, const double eps) {
     T p = p_0;
-    T delta = p * 1e-2;
+    T delta = p * 1e-3;
     T x1 = a + p / 2 - delta;
     T x2 = a + p / 2 + delta;
     array<double, 2> vals;
     vals[0] = f(x1);
     vals[1] = f(x2);
-    while (abs(vals[0] - vals[1]) > eps) {
+    while (abs(a - x2) > eps) {
         if (vals[1] > vals[0]) {
             p = p / 2 + delta;
-            delta = p * 1e-3;
+            // delta = p * 1e-3;
             x1 = a + p / 2 - delta;
             x2 = a + p / 2 + delta;
             vals[0] = f(x1);
@@ -51,7 +105,7 @@ template <typename T> T Dichotomy<T>::solve(function<double(T)> f, T a, const T 
         } else {
             p = p / 2 + delta;
             a = x1;
-            delta = p * 1e-3;
+            // delta = p * 1e-3;
             x1 = a + p / 2 - delta;
             x2 = a + p / 2 + delta;
             vals[0] = f(x1);
@@ -69,10 +123,7 @@ template <typename T> T TestPoints<T>::solve(function<double(T)> f, T a, const T
         x[i] = a + p / 4 * (i + 1);
         vals[i] = f(x[i]);
     }
-    while (true) {
-        if (abs(vals[0] - vals[1]) < eps) {
-            return x[0];
-        }
+    while (abs(x[0] - x[2]) > eps) {
         if (vals[0] < vals[1]) {
             p = p / 2;
             x[1] = x[0];
@@ -82,9 +133,6 @@ template <typename T> T TestPoints<T>::solve(function<double(T)> f, T a, const T
             vals[0] = f(x[0]);
             vals[2] = f(x[2]);
         } else {
-            if (abs(vals[1] - vals[2]) < eps) {
-                return x[1];
-            }
             if (vals[1] < vals[2]) {
                 p = p / 2;
                 x[0] = x[1] - p / 4;
@@ -102,8 +150,10 @@ template <typename T> T TestPoints<T>::solve(function<double(T)> f, T a, const T
             }
         }
     }
+    return x[1];
 }
 
+template class LinMethod<double>;
 template class Ratio<double>;
 template class Dichotomy<double>;
 template class TestPoints<double>;

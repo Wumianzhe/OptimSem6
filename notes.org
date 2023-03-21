@@ -28,10 +28,29 @@ savefig("figs/plot.png")
 
 Использовать методы золотого сечения, дихотомии, пробных точек
 
-Условие остановки универсальное:
+Останавливаемся, когда точки неразличимы, т.е.
 \[
-f(a) - f(b) < \epsilon
+\abs{b - a} < \epsilon
 \]
+
+Также построил графики зависимости расстояния до точного решения, разницы в
+значениях функций и количества итераций от $\epsilon$
+#+name: plot
+#+header: :var name = "ratio"
+#+begin_src julia
+using CSV
+using DataFrames
+using StatsPlots
+
+df = CSV.read("build/res/" * name, DataFrame)
+# will have columns: eps delta fdelta iters
+p1 = @df df plot(:eps, [:eps :delta :fdelta], title="Ошибки");
+plot!(p1, xscale=:log10, yscale=:log10, minorgrid=true, legend=:bottomright, xlabel="eps");
+p2 = @df df plot(:eps, :iters, title="Кол-во вызовов");
+plot!(p2, xscale=:log10, xlabel="eps", legend=:none);
+
+plot(p1,p2, layout=(1,2), title="name")
+#+end_src
 * Метод золотого сечения
 
 Рассмотрим $k$​-й шаг алгоритма. Интервал $[a_k,b_k]$
@@ -41,6 +60,11 @@ f(a) - f(b) < \epsilon
 \]
 Если $f(\lambda_k) > f(\mu_{k})$ на следующей итерации \([\lambda_{k}, b_{k}]\). При этом,
 \(\lambda_{k+1} = \mu_{k}\) Иначе, \([a_{k},\mu_{k}]\), \(\mu_{k+1} = \lambda_{k}\)
+
+#+call: plot(name="ratio")
+
+#+RESULTS:
+
 * Метод дихотомии
 
 Рассмотрим $k$​-й шаг алгоритма. Интервал $[a_k,b_k]$. Точки для проверки
