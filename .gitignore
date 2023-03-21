@@ -3,4 +3,9 @@ tmp/
 
 build/
 .cache/
-notes.tex
+notes.*
+compile_commands.json
+.gdb_history
+
+!notes.org
+!notes.pdf
