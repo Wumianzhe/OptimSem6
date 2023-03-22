@@ -44,7 +44,7 @@ savefig("figs/plot.png")
 значениях функций и количества итераций от $\epsilon$
 #+name: plot
 #+header: :var name = "ratio"
-#+begin_src julia :session :results silent
+#+begin_src julia :session
 df = CSV.read("build/res/" * name, DataFrame)
 # will have columns: eps delta fdelta iters
 p1 = @df df plot(:eps, [:eps :delta :fdelta], title="Ошибки");
@@ -66,7 +66,7 @@ savefig("figs/" * name * ".png")
 Если $f(\lambda_k) > f(\mu_{k})$ на следующей итерации \([\lambda_{k}, b_{k}]\). При этом,
 \(\lambda_{k+1} = \mu_{k}\) Иначе, \([a_{k},\mu_{k}]\), \(\mu_{k+1} = \lambda_{k}\)
 
-#+call: plot(name="ratio")
+#+call: plot[:results file graphics :file ratio.png :dir figs](name="ratio")
 
 * Метод дихотомии
 
@@ -75,7 +75,7 @@ savefig("figs/" * name * ".png")
 выберем интервал.
 
 
-#+call: plot(name="dichotomy")
+#+call: plot[:results file graphics :file dichotomy.png :dir figs](name="dichotomy")
 
 ** Оценка при постоянном $\delta$
 
@@ -103,4 +103,4 @@ f(x_{2}) < f(x_{3}) \implies [x_{1},x_{3}]
   f(x_2) > f(x_3) \implies [x_2,b]
 \]
 
-#+call: plot(name="testPoints")
+#+call: plot[:results file graphics :file testPoints.png :dir figs](name="testPoints")
