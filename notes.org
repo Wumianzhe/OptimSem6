@@ -9,9 +9,91 @@
 \[
 \min f(x) \\ x \in \RR^{n}
 \]
+
+\[
+      f(x) = x_1^2 + 4x_2^2 + \sin (6x_1 + 7x_2) + 3x_1 + 2x_2
+\]
+\[
+      \nabla f(x) = \dv{f}{x_1} \vec{e_1} + \dv{f}{x_2} \vec{e_2}
+\]
+\[
+      \dv{f}{x_1} = 2x_1 + 6 \cos (6x_1 + 7x_2) + 3
+\]
+\[
+      \dv{f}{x_2} = 8x_2 + 7 \cos (6x_1 + 7x_2) + 2
+\]
+
+
 Строим $\{x_k\}$ --- релаксационную последовательность спуска: $f(x_{k+1}) \leq f(x_k)$, используя двухшаговую систему:
 $x_{k+1} = x_k + \alpha_k p_k$.
 
+#+begin_src julia :session :exports none :results silent
+using StatsPlots,Optim,CSV,DataFrames
+gr()
+#+end_src
+
+График функции, также отмечено значение минимума, получаемое с помощью
+градиентного спуска в библиотеке ~Optim~ языка ~Julia~  с начальной точкой =(0,0)=
+#+begin_src julia :results file graphics :file "figs/plot.png" :ouput-dir figs :exports both :cache no :session
+f(x :: Vector{Float64}) = x[1]^2 + 4*x[2]^2 + sin(6*x[1] + 7*x[2]) + 3*x[1] + 2*x[2];
+x1 = range(-5,3, length=100);
+x2 = range(-3,2, length=100);
+vals = [f([x,y]) for y in x2, x in x1];
+minim = Optim.minimizer(optimize(f,zeros(2), GradientDescent()));
+# p1 = surface(x1,x2,vals, c=:curl, xlabel="x1", ylabel="x2", cam=(120,30));
+# scatter!([minim[1]],[minim[2]],[f(minim)], label="min")
+p2 = contour(x1,x2,vals,levels=25,fill=true, c=:curl, dpi = 300, xlabel="x1", ylabel="x2");
+scatter!([minim[1]],[minim[2]], label="min");
+# plot(p1,p2, size=(500,300), dpi=300)
+savefig("figs/plot.png")
+#+end_src
+
+#+RESULTS[ddb4b0d6d67906f7d99042e792b335ba699a8c9c]:
+[[file:figs/plot.png]]
+
+Точка минимума и значение функции в ней
+#+begin_src julia :session :results value :exports results
+f(x) = x[1]^2 + 4*x[2]^2 + sin(6*x[1] + 7*x[2]) + 3*x[1] + 2*x[2];
+
+res = optimize(f, zeros(2), GradientDescent())
+return (Optim.minimizer(res), Optim.minimum(res))
+#+end_src
+
+#+RESULTS:
+: ([-1.9043886748215388, -0.36794672198200706], -3.2716974195454807)
+
+Результаты работы функции оптимизации в ~Julia~
+#+begin_src julia :session :results output verbatim org replace :exports both
+f(x) = x[1]^2 + 4*x[2]^2 + sin(6*x[1] + 7*x[2]) + 3*x[1] + 2*x[2];
+
+optimize(f, zeros(2), GradientDescent())
+#+end_src
+
+#+RESULTS:
+#+begin_src org
+ ,* Status: success
+
+ ,* Candidate solution
+    Final objective value:     -3.271697e+00
+
+ ,* Found with
+    Algorithm:     Gradient Descent
+
+ ,* Convergence measures
+    |x - x'|               = 4.29e-09 ≰ 0.0e+00
+    |x - x'|/|x'|          = 2.25e-09 ≰ 0.0e+00
+    |f(x) - f(x')|         = 0.00e+00 ≤ 0.0e+00
+    |f(x) - f(x')|/|f(x')| = 0.00e+00 ≤ 0.0e+00
+    |g(x)|                 = 1.82e-07 ≰ 1.0e-08
+
+ ,* Work counters
+    Seconds run:   0  (vs limit Inf)
+    Iterations:    167
+    f(x) calls:    425
+    ∇f(x) calls:   425
+#+end_src
+
+    
 * Градиентный метод наискорейшего спуска
 Выбираем $\epsilon > 0$, $x_0$, $0 < \alpha_0 < 1$ --- начальное приближение.
 
@@ -22,7 +104,25 @@ $x_{k+1} = x_k + \alpha_k p_k$.
    b. Метод дихотомии
 3. $x_{k+1} = x_k - \alpha_k \nabla f(x_k)$.
 
-#+begin_src julia
-x = range(0,10);
-f = @. x*x;
+Условие выхода из цикла:
+\[
+  \norm{ \nabla f(x_k) } < \epsilon
+\]
+Как правило, используют евклидову норму.
+
+Для обоснования сходимости, используем Thm 3. О сходимости градиентного метода
+наискорейшего спуска, что требует доказательства липшицевости градиента.
+
+#+name: plot
+#+header: :var name = "ratio"
+#+begin_src julia :session :exports code
+df = CSV.read("build/res/" * name, DataFrame; header=["x","y"], delim=' ')
+@df df plot(p2, :x, :y, labels = name)
+savefig("figs/" * name * ".png")
 #+end_src
+
+#+call: plot[:results file graphics :file ratio.png :dir figs](name="ratio")
+#+call: plot[:results file graphics :file dichotomy.png :dir figs](name="dichotomy")
+* Градиентный метод второго порядка
+
+Выбор шага производим по принципу дробления.
