@@ -38,7 +38,7 @@ int main(int argc, char* argv[]) {
     gd.write({1e-1, 1e-3}, *methods[1], {0, 0});
     delete methods[1];
 
-    Grad2 g2(f, grad, Hessian, sol);
+    Grad2 g2(f, grad, Hessian, sol2);
     g2.write({1e-1, 1e-3}, {0, -0});
     cout << (1 - 0.1) / 58.5 << "     "
          << "(1-eps)/R" << endl;

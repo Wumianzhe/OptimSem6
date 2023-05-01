@@ -19,7 +19,7 @@ function h(x :: Vector{Float64})
     return res;
 end
 
-sol = [-1.9043886748, -0.3679467219];
+sol = [-0.4050064442611152, -0.06937312042384142];
 # sol =
 
 function newton(f,g,h,x0 :: Vector{Float64},eps :: Float64)
@@ -30,16 +30,17 @@ function newton(f,g,h,x0 :: Vector{Float64},eps :: Float64)
         p = h(xk)\ (-g_x)
         alpha = 1.0;
         e = 0.5;
-        l = 0.667;
+        l = 0.67;
         while (f(xk + p*alpha) - f(xk) > alpha * e * dot(g_x, p))
             alpha *= l
         end
         xp = xk;
         xk = xk + p*alpha;
         g_x = g(xk);
-        println(string(norm(xk - sol) / (norm(xp - sol)^2)))
+        println("Ratio: ",string(norm(xk - sol) / (norm(xp - sol)^2), "; ∇ Norm: ", norm(g_x)))
+        println("H(xk) eigenvalues: ",eigvals(h(xk)), "; R/m: ", 58.5/eigvals(h(xk))[1])
     end
     return xk;
 end
 
-print(newton(f,g,h,[0.0,-0.0], 1e-9))
+print(newton(f,g,h,[0.0,0.0], 1e-10))

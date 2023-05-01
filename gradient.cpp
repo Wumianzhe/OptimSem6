@@ -93,21 +93,21 @@ vector_t Grad2::solve(std::function<double(vector_t)> f, std::function<vector_t(
         if (iterations++ > 1000) {
             break;
         }
-        if (ofstr.is_open()) {
-            ofstr << xk.T();
-            // cout << norm(g_x) << " " << xk.T();
-            cout << norm(xk - m_sol) / (norm(xp - m_sol) * norm(xp - m_sol)) << "   " << 58.5 / 37.5 << " R/m" << endl;
-        }
         vector_t p = LinEqsolve(m_Hessian(xk), g_x * -1);
         double alpha = 1;
-        double e = 1.0 / 3;
-        double l = 2.0 / 3;
+        double e = 0.5;
+        double l = 0.67;
         while (f(xk + p * alpha) - f(xk) > alpha * e * dot(g_x, p)) {
             alpha *= l;
         }
         xp = xk;
         xk = xk + p * alpha;
         g_x = grad(xk);
+        if (ofstr.is_open()) {
+            ofstr << xk.T();
+            // cout << norm(g_x) << " " << xk.T();
+            cout << norm(xk - m_sol) / (norm(xp - m_sol) * norm(xp - m_sol)) << "   " << 58.5 / 37.5 << " R/m" << endl;
+        }
     }
     cout << norm(g_x) << " " << xk.T();
     return xk;
