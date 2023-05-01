@@ -3,34 +3,32 @@
 #include <functional>
 #include <string>
 
-template <typename T> class LinMethod {
+class LinMethod {
   public:
     // returns l: a + l*p minimizes f
-    virtual T solve(std::function<double(T)> f, T a, const T& p, const double eps) = 0;
+    virtual double solve(std::function<double(double)> f, double a, const  double p, const double eps) const = 0;
     LinMethod() = delete;
     virtual ~LinMethod(){};
-    void write(std::pair<double, double> eps_bounds, std::function<double(T)> f, T a, T p, double fact, T x);
-
     LinMethod(std::string name) : m_name(name) {}
     std::string m_name;
 };
 
-template <typename T> class Ratio : public LinMethod<T> {
+ class Ratio : public LinMethod {
   public:
-    T solve(std::function<double(T)> f, T a, const T& p, const double eps) override;
-    Ratio() : LinMethod<T>("ratio") {}
+    double solve(std::function<double(double)> f, double a, const  double p, const double eps) const override;
+    Ratio() : LinMethod("ratio") {}
 };
 
-template <typename T> class Dichotomy : public LinMethod<T> {
+ class Dichotomy : public LinMethod {
   public:
-    T solve(std::function<double(T)> f, T a, const T& p, const double eps) override;
-    Dichotomy() : LinMethod<T>("dichotomy") {}
+    double solve(std::function<double(double)> f, double a, const  double p, const double eps) const override;
+    Dichotomy() : LinMethod("dichotomy") {}
 };
 
-template <typename T> class TestPoints : public LinMethod<T> {
+ class TestPoints : public LinMethod {
   public:
-    T solve(std::function<double(T)> f, T a, const T& p, const double eps) override;
-    TestPoints() : LinMethod<T>("testPoints") {}
+    double solve(std::function<double(double)> f, double a, const  double p, const double eps) const override;
+    TestPoints() : LinMethod("testPoints") {}
 };
 
 #endif // LINMETHODS_H_
