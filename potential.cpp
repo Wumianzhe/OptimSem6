@@ -47,18 +47,24 @@ transpTask readTransport(string filename) {
 
     // open to closed conversion
     int sum = 0;
+    // providers
     for (int i = 0; i < height; i++) {
         sum += a[i];
     }
+    // requirements
     for (int j = 0; j < width; j++) {
         sum -= b[j];
     }
     // more required than provided
     if (sum < 0) {
         C.resize(width, height + 1);
+        a.resize(height + 1);
         for (int i = 0; i < width; i++) {
+            // penalties
             C(i, height) = p[i];
         }
+        // provide all missing
+        a[height] = -sum;
     }
 
     C = C.T();
@@ -66,11 +72,14 @@ transpTask readTransport(string filename) {
     // more provided than required
     if (sum > 0) {
         C.resize(height, width + 1);
+        b.resize(width + 1);
+        // require all surplus
+        b[width] = sum;
         for (int i = 0; i < height; i++) {
             C(i, width) = 0;
         }
     }
-    return {C, a, b};
+    return {C, a, b, sum};
 }
 
 vector<string> split(string line, char sep) {
@@ -82,6 +91,7 @@ vector<string> split(string line, char sep) {
     return ret;
 }
 
+// NW corner
 void transpTask::buildInit() {
     int m = a.size();
     int n = b.size();
@@ -105,10 +115,6 @@ void transpTask::buildInit() {
 void transpTask::solvePot() {
     while (!isOptimal()) {
         auto cycle = buildCycle();
-        for (auto [i,j] : cycle) {
-            cout << "{" << i << "," << j <<"} ";
-        }
-        cout << endl;
         coord_t coords = cycle[1];
         int theta = X(coords.first, coords.second);
         // k = 1 is already "done"
@@ -125,7 +131,6 @@ void transpTask::solvePot() {
             sign *= -1;
         }
         X(coords) = -1;
-        cout << X;
     }
 }
 
@@ -142,7 +147,7 @@ std::vector<std::pair<int, int>> transpTask::buildCycle() {
     }
     buildCycleInt(X, cycle, dMaxCell.second, initCand, dir::hor);
     cycle.insert(cycle.begin(), dMaxCell.second);
-    dMaxCell = {0, {0,0}};
+    dMaxCell = {0, {0, 0}};
     return cycle;
 }
 
@@ -202,14 +207,14 @@ bool transpTask::isOptimal() {
         if (dir == dir::vert) {
             v[j] = C(i, j) + u[i];
             for (int i = 0; i < m; i++) {
-                if (coords != pair{i,j} && X(i, j) >= 0) {
+                if (coords != pair{i, j} && X(i, j) >= 0) {
                     evals.push({{i, j}, dir::hor});
                 }
             }
         } else {
             u[i] = v[j] - C(i, j);
             for (int j = 0; j < n; j++) {
-                if (coords != pair{i,j} && X(i, j) >= 0) {
+                if (coords != pair{i, j} && X(i, j) >= 0) {
                     evals.push({{i, j}, dir::vert});
                 }
             }
@@ -222,12 +227,75 @@ bool transpTask::isOptimal() {
             int delta = C(i, j) - v[j] + u[i];
             if (optim && delta < 0) {
                 optim = false;
-            }
-            if (abs(delta) >= dMaxCell.first) {
-                dMaxCell.first = abs(delta);
-                dMaxCell.second = {i, j};
+                if (abs(delta) >= dMaxCell.first) {
+                    dMaxCell.first = abs(delta);
+                    dMaxCell.second = {i, j};
+                }
             }
         }
     }
     return optim;
+}
+
+int transpTask::results(const Matrix& Xr) {
+    int m = a.size();
+    int n = b.size();
+    int cost = 0;
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            cost += C(i, j) * ((Xr(i, j) < 0) ? 0 : Xr(i, j));
+        }
+    }
+    return cost;
+}
+
+void transpTask::prettyPrint() {
+    int m = a.size();
+    int n = b.size();
+    if (diff > 0) {
+        n--;
+    } else if (diff < 0) {
+        m--;
+    }
+    Matrix Cf(m, n + 1);
+    Matrix Xf(m, n);
+    vector_t af(m);
+    vector_t bf(n);
+    copy(a.begin(), a.begin() + m, af.begin());
+    copy(b.begin(), b.begin() + n, bf.begin());
+    for (int i = 0; i < m; i++) {
+        for (int j = 0; j < n; j++) {
+            Cf(i, j) = C(i, j);
+            Xf(i, j) = (X(i, j) < 0) ? 0 : X(i, j);
+        }
+    }
+    copy(af.begin(), af.end(), Cf.begin() + n * m);
+    cout << "Условия задачи:" << endl;
+    cout << Cf << bf.T();
+    if (diff < 0) {
+        bool p = false;
+        for (int j = 0; j < n; j++) {
+            if (C(m, j) > 0) {
+                p = true;
+                break;
+            }
+        }
+        if (p) {
+            cout << "Штрафы: ";
+            for (int j = 0; j < n - 1; j++) {
+                cout << C(m, j) << ' ';
+            }
+            cout << C(m, n - 1) << endl;
+        }
+    }
+    cout << "Значение функции цели: " << results(X) << endl;
+    cout << "Матрица перевозок:" << endl;
+    cout << Xf;
+    if (diff < 0) {
+        cout << "Недопоставки: ";
+        for (int j = 0; j < n - 1; j++) {
+            cout << ((X(m, j) < 0) ? 0 : X(m, j)) << ' ';
+        }
+        cout << X(m, n - 1) << endl;
+    }
 }
