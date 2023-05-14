@@ -86,17 +86,18 @@ b_i \leq 0, i= -3,0\}\) где
     -6x_1 - 7x_2 \leq 5\pi\\
     x_2 \leq -0.05\\
     x_2 + 0.5 \geq x_1\\
-    x_3 \geq -3.5\\
+    -x_1-x_2+x_3 \geq -2\\
     x_3 \leq  50\\
   \end{split} \implies \begin{split}
               6x_1 + 7x_2 \leq  -4\pi\\
               -6x_1 - 7x_2 \leq 5\pi\\
               x_2 \leq -0.05\\
               x_1 - x_2 \leq 0.5\\
-              -x_3 \leq 3.5\\
+              x_1+x_2-x_3 \leq 2\\
               x_3 \leq 50
             \end{split}
 \]
+Представление исходного полиэдра в виде матрицы ограничений
 #+end_export
 #+begin_src csv :comments no :tangle build/task.csv
 6,3
@@ -105,7 +106,7 @@ b_i \leq 0, i= -3,0\}\) где
 -6,-7,0,LT,15.708
 0,1,0,LT,-0.05
 1,-1,0,LT,0.5
-0,0,-1,LT,3.5
+1,1,-1,LT,2
 0,0,1,LT,50
 1,2,3
 #+end_src

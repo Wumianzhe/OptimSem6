@@ -5,10 +5,13 @@
 
 using namespace std;
 
+const double eps = 1e-6;
+
 std::tuple<task_t, set<int>, set<int>> read(string filename);
 vector<string> split(string line, char sep);
 vector_t restore(vector_t& xCan, int size, set<int>& unbound);
 vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, set<int> noneq);
+vector_t fastSolver(const task_t& task, set<int> unbound, set<int> noneq);
 
 double f(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1]; }
 double phi(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1] -x[2]; }
@@ -33,14 +36,17 @@ vector_t gradc(vector_t x) {
 int main(int argc, char* argv[]) {
     auto [task, unbound, noneq] = read("task.csv");
     task_t primCan = genCanon(task,unbound,noneq,extrem::min);
+    vector_t sol = {-1.9043886748, -0.3679467219};
     // cout << primCan.A;
 
     auto init = initBasic(primCan);
     auto x0 = simplex(primCan,init,{});
     auto x0r = restore(x0, task.C.size(), unbound);
 
+    vector_t xf = fastSolver(task, unbound, noneq);
+    cout << xf.T();
+    cout << norm(sol-xf) << endl;
 
-    vector_t sol = {-1.9043886748, -0.3679467219};
     vector_t x = naiveSolver(x0r, task, unbound, noneq);
     cout << norm(sol-x) << endl;
     return 0;
@@ -113,6 +119,7 @@ vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, se
     task_t taskInt = task;
     vector_t xk = x0;
     vector_t xp(3);
+    int iter = 0;
     do {
         vector_t ak = (phi(xk) < c(xk))?gradc(xk):gradf(xk);
         double bkn = -((phi(xk) < c(xk))?c(xk):phi(xk)) + dot(ak,xk);
@@ -136,13 +143,63 @@ vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, se
         noneq.insert(taskInt.A.rows-1);
 
         task_t can = genCanon(taskInt,unbound,noneq,extrem::min);
-        cout << can.A << endl;
-        cout << can.b.T() << endl << endl;
         auto initk = initBasic(can);
         auto xkraw = simplex(can,initk,{});
         xk = restore(xkraw,taskInt.C.size(), unbound);
+        cout << "Итерация: " <<++iter << ", значение: ";
         cout << xk.T();
-    } while (norm(xk - xp) > 1e-3);
+    } while (norm(xk - xp) > eps);
+    vector_t sol(2);
+    sol[0] = xk[0];
+    sol[1] = xk[1];
+    return sol;
+}
+
+vector_t fastSolver(const task_t& task, set<int> unbound, set<int> noneq) {
+    int iter = 0;
+
+    auto [dual, dUnbound, dNoneq] = genDual(task, unbound, noneq);
+    dual.C = dual.C *-1;
+    auto dInit = initBasic(dual);
+    auto dualSol = simplex(dual,dInit,{});
+    set<int> dualNoneq;
+    for (int i=0; i < dualSol.size(); i++) {
+        if (dualSol[i] !=0) {
+            dualNoneq.insert(i);
+        }
+    }
+    vector_t xk = solve(dual.A[dualNoneq].T(),dual.C.T()[dualNoneq].T()*-1);
+    vector_t xp(3);
+    do {
+        vector_t ak = ((phi(xk) < c(xk))?gradc(xk):gradf(xk))*-1;
+        double bk = ((phi(xk) < c(xk))?c(xk):phi(xk)) + dot(ak,xk);
+
+        Matrix Ak = dual.A;
+        Ak.resize(dual.A.rows,dual.A.cols+1); // appending to the right is easy
+        vector_t Ck = dual.C;
+        Ck.resize(dual.C.rows+1);
+        vector_t init = dualSol;
+        init.resize(dual.C.rows+1);
+
+        copy(ak.begin(),ak.end(),Ak.begin() + dual.A.size());
+        Ck[dual.C.rows] = -bk;
+        init[dual.C.rows] = 0;
+        dualSol = simplex({Ck,Ak,dual.b},init,{});
+        set<int> dualNoneq;
+        for (int i = 0; i < dualSol.size(); i++) {
+            if (dualSol[i] != 0) {
+                dualNoneq.insert(i);
+            }
+        }
+
+        dual.A = Ak;
+        dual.C = Ck;
+        xp = xk;
+        xk = solve(Ak[dualNoneq].T(),Ck.T()[dualNoneq].T()*-1);
+        cout << "Итерация: " <<++iter << ", значение: ";
+        cout << xk.T();
+    } while (norm(xk - xp) > eps);
+
     vector_t sol(2);
     sol[0] = xk[0];
     sol[1] = xk[1];
