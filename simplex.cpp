@@ -5,7 +5,7 @@
 using namespace std;
 
 double eps = 1e-8;
-double eps0 = 1e-13;
+double eps0 = 1e-12;
 struct {
     set<int> supSet;
     vector<bool> mask;
@@ -148,19 +148,6 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         // cout << "theta: " << thk << ", C: " << dot(task.C, xk) << ", x_n: " << xk.T();
         // 5
         if (abs(thk) > eps0) { // thk != 0
-            // Matrix F = Matrix::eyes(m);
-            // // F dimensions are m,m. So it's possible to go out of bounds
-            // int dist = distance(Nk.begin(), find(Nk.begin(), Nk.end(), ik));
-            // double div = uk[ik];
-            // for (int i = 0; i < m; i++) {
-            //     if (i != dist) {
-            //         F(i, dist) = -uknk[i] / div;
-            //     } else {
-            //         F(i, i) = 1 / div;
-            //     }
-            //     it++;
-            // }
-            // B = F * B;
             // recalculating sets
             Nk.erase(ik);
             Nk.insert(jk);
@@ -171,8 +158,7 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             set_filter(N, Nkp, [&](int i) { return xk[i] > 0; });
             Lkp.clear();
             set_filter(N, Lkp, [&](int i) { return xk[i] == 0; });
-            // using F can swap indices (A[Nk] is always in ascending order, which is not guaranteed with F), which
-            // leads to incorrect answers
+
             B = inverse(task.A[Nk]);
             generator.reset(Lk, m - Nkp.size());
         } else {

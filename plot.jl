@@ -14,6 +14,6 @@ function poly(_A,_b)
     local A = -permutedims(_A);
     local b = -permutedims(_b);
     local halves = [HalfSpace(A[:,i],b[i]) for i in 1:size(A)[2]]
-    local p = polyhedra(hrep(halves))
+    local p = polyhedron(hrep(halves))
     plot(p)
 end

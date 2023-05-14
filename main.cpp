@@ -8,13 +8,24 @@ using namespace std;
 std::tuple<task_t, set<int>, set<int>> read(string filename);
 vector<string> split(string line, char sep);
 vector_t restore(vector_t& xCan, int size, set<int>& unbound);
+vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, set<int> noneq);
 
 double f(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1]; }
+double phi(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1] -x[2]; }
+double c(vector_t x) { return (x[0] + 2)*(x[0] + 2) + 3 * (x[1] + 0.5) * (x[1] + 0.5) - 0.5; }
 
-vector_t grad(vector_t x) {
+vector_t gradf(vector_t x) {
     vector_t res(3);
     res[0] = 2 * x[0] + 6 * cos(6 * x[0] + 7 * x[1]) + 3;
     res[1] = 8 * x[1] + 7 * cos(6 * x[0] + 7 * x[1]) + 2;
+    res[2] = -1;
+    return res;
+}
+
+vector_t gradc(vector_t x) {
+    vector_t res(3);
+    res[0] = 2* (x[0] + 2);
+    res[1] = 6* (x[1] + 0.5);
     res[2] = 0;
     return res;
 }
@@ -27,50 +38,11 @@ int main(int argc, char* argv[]) {
     auto init = initBasic(primCan);
     auto x0 = simplex(primCan,init,{});
     auto x0r = restore(x0, task.C.size(), unbound);
-    // auto [dual, dUnbound, dNoneq] = genDual(task, unbound, noneq);
-    // auto dualCan = genCanon(dual,dUnbound,dNoneq,extrem::max);
-    // dualCan.C = dualCan.C *-1;
-    // cout << dualCan.C.T() << endl << dualCan.A << endl;
-    // auto dInit = initBasic(dualCan);
-    // auto dualCanSol = simplex(dualCan,dInit,{});
-    // cout << dualCanSol.T();
-    // auto dualSol = restore(dualCanSol, dual.C.size(), dUnbound);
 
-    // Matrix res19 = task.C.T() - dualSol.T() * task.A;
-    // cout << res19;
-    // cout << res19 * x0r;
 
-    vector_t xk = x0r;
-    vector_t xp(3);
-    do {
-        vector_t ak = grad(xk);
-        double bkn = -f(xk) + dot(ak,xk);
-        Matrix Ak(task.A.rows+1,task.A.cols);
-        vector_t bk(task.b.rows+1);
-        for (int i=0; i < task.A.rows; i++) {
-            for (int j=0; j < task.A.cols; j++) {
-                Ak(i,j) = task.A(i,j);
-            }
-        }
-        for (int j=0; j < task.A.cols; j++) {
-            Ak(task.A.rows,j) = -ak[j];
-        }
-        for (int j=0; j < task.b.rows; j++) {
-            bk[j] = task.b[j];
-        }
-        bk[task.b.rows] = -bkn;
-        task.A = Ak;
-        task.b = bk;
-        xp = xk;
-        noneq.insert(task.A.rows-1);
-
-        task_t can = genCanon(task,unbound,noneq,extrem::min);
-        cout << can.A << endl;
-        cout << can.b.T() << endl << endl;
-        auto initk = initBasic(can);
-        auto xkraw = simplex(can,initk,{});
-        xk = restore(xkraw,task.C.size(), unbound);
-    } while (norm(xk - xp) > 1e-3);
+    vector_t sol = {-1.9043886748, -0.3679467219};
+    vector_t x = naiveSolver(x0r, task, unbound, noneq);
+    cout << norm(sol-x) << endl;
     return 0;
 }
 
@@ -133,4 +105,46 @@ vector_t restore(vector_t& xCan, int size, set<int>& unbound) {
         }
     }
     return res;
+}
+
+vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, set<int> noneq) {
+    // 8 seconds of real time on PC
+    // I see why alternative is needed
+    task_t taskInt = task;
+    vector_t xk = x0;
+    vector_t xp(3);
+    do {
+        vector_t ak = (phi(xk) < c(xk))?gradc(xk):gradf(xk);
+        double bkn = -((phi(xk) < c(xk))?c(xk):phi(xk)) + dot(ak,xk);
+        Matrix Ak(taskInt.A.rows+1,taskInt.A.cols);
+        vector_t bk(taskInt.b.rows+1);
+        for (int i=0; i < taskInt.A.rows; i++) {
+            for (int j=0; j < taskInt.A.cols; j++) {
+                Ak(i,j) = taskInt.A(i,j);
+            }
+        }
+        for (int j=0; j < taskInt.A.cols; j++) {
+            Ak(taskInt.A.rows,j) = -ak[j];
+        }
+        for (int j=0; j < taskInt.b.rows; j++) {
+            bk[j] = taskInt.b[j];
+        }
+        bk[taskInt.b.rows] = -bkn;
+        taskInt.A = Ak;
+        taskInt.b = bk;
+        xp = xk;
+        noneq.insert(taskInt.A.rows-1);
+
+        task_t can = genCanon(taskInt,unbound,noneq,extrem::min);
+        cout << can.A << endl;
+        cout << can.b.T() << endl << endl;
+        auto initk = initBasic(can);
+        auto xkraw = simplex(can,initk,{});
+        xk = restore(xkraw,taskInt.C.size(), unbound);
+        cout << xk.T();
+    } while (norm(xk - xp) > 1e-3);
+    vector_t sol(2);
+    sol[0] = xk[0];
+    sol[1] = xk[1];
+    return sol;
 }
