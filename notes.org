@@ -98,3 +98,14 @@ b_i \leq 0, i= -3,0\}\) где
             \end{split}
 \]
 #+end_export
+#+begin_src csv :comments no :tangle build/task.csv
+6,3
+0,0,1
+6,7,0,LT,-12.566
+-6,-7,0,LT,15.708
+0,1,0,LT,-0.05
+1,-1,0,LT,0.5
+0,0,-1,LT,3.5
+0,0,1,LT,50
+1,2,3
+#+end_src

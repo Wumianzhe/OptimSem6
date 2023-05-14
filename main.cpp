@@ -22,6 +22,7 @@ vector_t grad(vector_t x) {
 int main(int argc, char* argv[]) {
     auto [task, unbound, noneq] = read("task.csv");
     task_t primCan = genCanon(task,unbound,noneq,extrem::min);
+    // cout << primCan.A;
 
     auto init = initBasic(primCan);
     auto x0 = simplex(primCan,init,{});
@@ -55,18 +56,20 @@ int main(int argc, char* argv[]) {
             Ak(task.A.rows,j) = -ak[j];
         }
         for (int j=0; j < task.b.rows; j++) {
-            bk[j] = -task.b[j];
+            bk[j] = task.b[j];
         }
-        bk[task.b.rows] = bkn;
+        bk[task.b.rows] = -bkn;
         task.A = Ak;
         task.b = bk;
         xp = xk;
         noneq.insert(task.A.rows-1);
 
         task_t can = genCanon(task,unbound,noneq,extrem::min);
+        cout << can.A << endl;
+        cout << can.b.T() << endl << endl;
         auto initk = initBasic(can);
         auto xkraw = simplex(can,initk,{});
-        xk = restore(xkraw,can.C.size(), unbound);
+        xk = restore(xkraw,task.C.size(), unbound);
     } while (norm(xk - xp) > 1e-3);
     return 0;
 }
