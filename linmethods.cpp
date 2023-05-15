@@ -100,3 +100,26 @@ double TestPoints::solve(function<double(double)> f, double a, const double p_0,
     }
     return x[1];
 }
+
+const int n=4;
+double UniSearch::solve(std::function<double (double)> f, double a, const double p_0, const double eps) const {
+    double p = p_0;
+    array<double, n> x;
+    array<double, n> vals;
+    int iMin = 0;
+    do {
+        for (int i = 0; i < n; i++) {
+            x[i] = a + p / n * (i + 1);
+            vals[i] = f(x[i]);
+        }
+        iMin = 0;
+        for (int i=1; i < n; i++) {
+            if (vals[i] < vals[iMin]) {
+                iMin = i;
+            }
+        }
+        a = (iMin>0)?x[iMin-1]:a;
+        p = p * 2 / (n+1);
+    } while (p > eps);
+    return x[iMin];
+}
