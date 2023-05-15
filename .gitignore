@@ -2,6 +2,7 @@
 tmp/
 
 build/
+figs/
 .cache/
 notes.*
 compile_commands.json
