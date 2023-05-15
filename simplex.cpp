@@ -11,6 +11,7 @@ struct {
     vector<bool> mask;
     bool first;
     set<int> next() {
+        // https://stackoverflow.com/a/28698654
         if (first) {
             first = !first;
         } else {
@@ -37,21 +38,7 @@ struct {
     }
 } generator;
 
-void setPrint(set<int> N) {
-    cout << "{";
-    for (int i : N) {
-        cout << " " << i;
-    }
-    cout << "}\n";
-}
-void genTest() {
-    generator.reset({1, 2, 3, 4, 5}, 3);
-    set<int> perm = generator.next();
-    while (perm != set<int>{}) {
-        setPrint(perm);
-        perm = generator.next();
-    }
-}
+// округление до eps0. В основном для избавления от -0 и очень маленьких положительных значений
 void trim(Matrix& v) {
     for (auto& el : v) {
         if (abs(el) < eps0) {
@@ -87,7 +74,9 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
     set<int> Lkp;
     set_filter(N, Lkp, [&](int i) { return (Nkp.find(i) == Nkp.end()); });
     generator.reset(Lkp, m - Nkp.size());
-    if (Nk0 != set<int>{}) {
+    // Если задано начальное множество индексов (когда начинаем с решения метода исск. базиса)
+    // используем его, иначе fill заполняет его так, чтобы определитель был не равен 0
+    if (!Nk0.empty()) {
         Nk = Nk0;
     } else {
         if (Nkp.size() < m) {
@@ -97,38 +86,39 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
         }
     }
     B = inverse(task.A[Nk]);
-    // 2.
     while (true) {
+        // разность множеств
         // Lk = N \ Nk (not Nkp!)
         set<int> Lk;
         set_filter(Lkp, Lk, [&](int i) { return (Nk.find(i) == Nk.end()); });
-        // whole vector to avoid index confusion like in 3.b
+        // 2.
+        // тут используем весь вектор dk, чтобы не преобразовывать индексы
         vector_t dk = task.C.T() - task.C.T()[Nk] * B * task.A;
         trim(dk);
-        // cout << "\nIter xk: " << xk.T();
-        // setPrint(Nk);
-        // cout << "dk: " << dk.T();
+
         // 3.a
         auto it = find_if(Lk.begin(), Lk.end(), [&dk](int j) { return (dk[j] < 0); });
-        // dk >= 0
+        // dk >= 0 (не найден элемент, меньший 0)
         if (it == Lk.end()) {
             return xk;
         }
         int jk = *it;
+
         // 3.b
         vector_t uknk = B * task.A[{jk}];
         trim(uknk);
         vector_t uk(n);
-        // copy using indices I need
+        // копируем нужные индексы
         int i = 0;
         for (int index : Nk) {
             uk[index] = uknk[i++];
         }
-        uk[jk] = -1; // rest is 0 by construction
-        // cout << "uk: " << uk.T();
+        uk[jk] = -1;
+        // всё остальное в uk 0 по построению
+         
         // 4.a
         set<int> P;
-        // equivalent of P = { i in N | uk[i] > 0}
+        // P = { i in N | uk[i] > 0}
         set_filter(Nk, P, [&](int i) { return uk[i] > 0; });
         if (P.size() == 0) {
             throw logic_error("no lower bound");
@@ -143,9 +133,9 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             }
         }
         xk = xk - uk * thk;
-        // to prevent -0. Limits maximum precision, but should prevent many bugs
         trim(xk);
         // cout << "theta: " << thk << ", C: " << dot(task.C, xk) << ", x_n: " << xk.T();
+        
         // 5
         if (abs(thk) > eps0) { // thk != 0
             // recalculating sets
@@ -159,6 +149,11 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
             Lkp.clear();
             set_filter(N, Lkp, [&](int i) { return xk[i] == 0; });
 
+            // все красивые записи в теории о перестройке матрицы игнорируем. Я
+            // использую множества, а они в c++ отсортированы. Из-за чего в
+            // матрице A столбцы всегда по возрастанию индекса, что не всегда
+            // так для B=A^-1, полученной построением. Как результат, получаем
+            // значения не там, где они должны быть, и пару ночей дебага
             B = inverse(task.A[Nk]);
             generator.reset(Lk, m - Nkp.size());
         } else {
@@ -169,10 +164,11 @@ vector_t simplex(task_t task, vector_t x0, set<int> Nk0) {
     }
 }
 
-// finding starting basic vector
+// Поиск начального опорного вектора
 vector_t initBasic(task_t task) {
     int n = task.A.cols;
     int m = task.A.rows;
+    // очень много копирования. В общем всё по теории
     vector_t secC(n + m);
     for (int i = 0; i < m; i++) {
         secC[n + i] = 1;
@@ -209,6 +205,7 @@ vector_t initBasic(task_t task) {
         }
     }
     vector_t xInit(n);
+    // копирование первых n компонент
     copy(res.begin(), res.begin() + n, xInit.begin());
     return xInit;
 }
@@ -221,6 +218,7 @@ set<int> fill(Matrix& A, set<int> Np) {
     double dcur = det(A[merge(Np, perm)]);
     while (isnan(dcur) || abs(dcur) < eps) {
         perm = generator.next();
+        // если генератор вернул пустое мн-во, пройдены все комбинации.
         if (perm == set<int>{}) {
             throw logic_error("looping");
         }
@@ -254,6 +252,7 @@ Matrix solve(const Matrix& A,const Matrix& b) {
 }
 
 // no requirements for A other than squareness, it can always be transformed
+// ну да, только иногда NaN возвращает...
 double det(const Matrix& A) {
     if (A.cols != A.rows) {
         throw std::invalid_argument("determinant is not defined for non-square matrices");
@@ -296,7 +295,7 @@ vector_t enumerate(task_t task) {
                 it++;
             }
             // cout << x_tFull.T();
-            // compiler doesn't know it's 1x1
+            // dot это скалярное произведение (dot product)
             if (!first) {
                 if (dot(task.C, x_tFull) > dot(task.C, x)) {
                     copy(x_tFull.begin(), x_tFull.end(), x.begin());

@@ -10,7 +10,6 @@ struct task_t {
     vector_t b;
 };
 
-void genTest();
 task_t genCanon(task_t task, std::set<int>& unbound, std::set<int>& noneq, int sign);
 std::tuple<task_t, std::set<int>, std::set<int>> genDual(task_t task, std::set<int>& unbound, std::set<int>& noneq);
 vector_t restore(vector_t& xCan, int size, std::set<int>& unbound);
