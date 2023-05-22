@@ -5,7 +5,7 @@
 
 using namespace std;
 
-const double eps = 1e-6;
+const double eps = 1e-3;
 
 std::tuple<task_t, set<int>, set<int>> read(string filename);
 vector<string> split(string line, char sep);
@@ -14,6 +14,12 @@ vector_t naiveSolver(const vector_t& x0, const task_t& task, set<int>unbound, se
 vector_t fastSolver(const task_t& task, set<int> unbound, set<int> noneq);
 
 double f(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1]; }
+vector_t gradf(vector_t x) {
+    vector_t res(2);
+    res[0] = 2 * x[0] + 6 * cos(6 * x[0] + 7 * x[1]) + 3;
+    res[1] = 8 * x[1] + 7 * cos(6 * x[0] + 7 * x[1]) + 2;
+    return res;
+}
 // phi uses x[2], which is additional variable reflecting value of f
 double phi(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1] -x[2]; }
 double c(vector_t x) { return (x[0] + 2)*(x[0] + 2) + 3 * (x[1] + 0.5) * (x[1] + 0.5) - 0.5; }
@@ -40,15 +46,11 @@ int main(int argc, char* argv[]) {
     // cout << primCan.A;
 
     vector_t xf = fastSolver(task, unbound, noneq);
-    cout << xf.T();
-    cout << norm(sol-xf) << endl;
+    cout << "x " <<xf.T();
+    cout << "||x - x*|| " <<  norm(sol-xf) << endl;
 
-    task_t primCan = genCanon(task,unbound,noneq,extrem::min);
-    auto init = initBasic(primCan);
-    auto x0 = simplex(primCan,init,{});
-    auto x0r = restore(x0, task.C.size(), unbound);
-    vector_t x = naiveSolver(x0r, task, unbound, noneq);
-    cout << norm(sol-x) << endl;
+    cout << "||∇ f(x)|| " << norm(gradf(xf)) << endl;
+
     return 0;
 }
 
@@ -204,6 +206,7 @@ vector_t fastSolver(const task_t& task, set<int> unbound, set<int> noneq) {
 
         // решение двойственной и восстановление
         dualSol = simplex({Ck,Ak,dual.b},init,{});
+    cout << dualSol.T();
         set<int> dualNoneq;
         for (int i = 0; i < dualSol.size(); i++) {
             if (dualSol[i] != 0) {
