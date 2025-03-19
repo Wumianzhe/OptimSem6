@@ -1,11 +1,14 @@
 #include "gradient.h"
 #include "linmethods.h"
 #include "vector.h"
+#include <cmath>
 #include <iostream>
 
 using namespace std;
 
 double f(vector_t x) { return x[0] * x[0] + 4 * x[1] * x[1] + sin(6 * x[0] + 7 * x[1]) + 3 * x[0] + 2 * x[1]; }
+
+double v(vector_t x) { return pow(x[0]*x[1]-cos(x[0]),2) + pow(sinh(x[1]),2);}
 
 vector_t grad(vector_t x) {
     vector_t res(2);
